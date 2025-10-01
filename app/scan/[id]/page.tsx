@@ -45,4 +45,3 @@ export default function ScanPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

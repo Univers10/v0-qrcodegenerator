@@ -8,4 +8,3 @@ export function initLocalStorage() {
 }
 
 export default initLocalStorage
-

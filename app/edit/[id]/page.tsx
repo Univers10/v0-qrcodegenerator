@@ -407,4 +407,3 @@ export default function EditPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

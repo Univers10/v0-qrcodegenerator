@@ -11,4 +11,3 @@ export {
   recordScan,
   initializeStorage,
 } from "@/lib/qr-service"
-

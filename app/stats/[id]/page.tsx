@@ -362,4 +362,3 @@ export default function StatsPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

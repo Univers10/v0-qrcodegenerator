@@ -117,4 +117,3 @@ export default function ContentPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

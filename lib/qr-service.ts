@@ -109,4 +109,3 @@ export function initializeStorage(): void {
     localStorage.setItem(QR_CODES_STORAGE_KEY, JSON.stringify([]))
   }
 }
-

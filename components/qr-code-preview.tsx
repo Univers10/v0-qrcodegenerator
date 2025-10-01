@@ -99,4 +99,3 @@ export function QRCodePreview({ qrData }: QRCodePreviewProps) {
     </div>
   )
 }
-
