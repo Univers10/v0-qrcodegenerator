@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useImperativeHandle, forwardRef } from "react"
 import QRCodeStyling from "qr-code-styling"
 
 interface QRCodePreviewProps {
@@ -18,12 +18,26 @@ interface QRCodePreviewProps {
     dotStyle: string
     cornerSquareStyle: string
     cornerDotStyle: string
+    name?: string
   }
 }
 
-export function QRCodePreview({ qrData }: QRCodePreviewProps) {
+export interface QRCodePreviewRef {
+  download: (format: "png" | "svg" | "jpeg") => void
+}
+
+export const QRCodePreview = forwardRef<QRCodePreviewRef, QRCodePreviewProps>(({ qrData }, ref) => {
   const qrRef = useRef<HTMLDivElement>(null)
   const qrCode = useRef<QRCodeStyling>()
+
+  useImperativeHandle(ref, () => ({
+    download: (format: "png" | "svg" | "jpeg") => {
+      if (qrCode.current) {
+        const fileName = qrData.name ? `${qrData.name.replace(/\s+/g, "_")}` : "qr-code"
+        qrCode.current.download({ name: fileName, extension: format })
+      }
+    }
+  }))
 
   useEffect(() => {
     if (!qrCode.current) {
@@ -98,4 +112,6 @@ export function QRCodePreview({ qrData }: QRCodePreviewProps) {
       <div ref={qrRef} className="h-[300px] w-[300px]" />
     </div>
   )
-}
+})
+
+QRCodePreview.displayName = "QRCodePreview"

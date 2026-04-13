@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { ArrowLeft, QrCode, Save } from "lucide-react"
+import { ArrowLeft, QrCode, Save, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -13,13 +13,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { QRCodePreview } from "@/components/qr-code-preview"
+import { QRCodePreview, type QRCodePreviewRef } from "@/components/qr-code-preview"
 import { ColorPicker } from "@/components/color-picker"
 import { getQRCodeById, updateQRCode } from "@/lib/qr-service"
 import { toast } from "@/hooks/use-toast"
 
 export default function EditPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const qrCodeRef = useRef<QRCodePreviewRef>(null)
+  const [downloadFormat, setDownloadFormat] = useState<"png" | "svg" | "jpeg">("png")
   const [qrData, setQrData] = useState({
     id: "",
     name: "",
@@ -116,6 +118,16 @@ export default function EditPage({ params }: { params: { id: string } }) {
     })
 
     router.push("/dashboard")
+  }
+
+  const handleDownload = () => {
+    if (qrCodeRef.current) {
+      qrCodeRef.current.download(downloadFormat)
+      toast({
+        title: "Succès",
+        description: `QR code téléchargé en format ${downloadFormat.toUpperCase()}`,
+      })
+    }
   }
 
   const getContentLabel = () => {
@@ -368,7 +380,26 @@ export default function EditPage({ params }: { params: { id: string } }) {
             <Card>
               <CardContent className="flex flex-col items-center justify-center p-6">
                 <h3 className="mb-4 text-lg font-medium">Aperçu</h3>
-                <QRCodePreview qrData={qrData} />
+                <QRCodePreview ref={qrCodeRef} qrData={qrData} />
+                <div className="mt-6 w-full space-y-4">
+                  <div className="space-y-2">
+                    <Label>Format de téléchargement</Label>
+                    <Select value={downloadFormat} onValueChange={(value: "png" | "svg" | "jpeg") => setDownloadFormat(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner le format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="png">PNG (Image)</SelectItem>
+                        <SelectItem value="svg">SVG (Vectoriel)</SelectItem>
+                        <SelectItem value="jpeg">JPEG (Image)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleDownload} variant="outline" className="w-full gap-2">
+                    <Download className="h-4 w-4" />
+                    Télécharger en {downloadFormat.toUpperCase()}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
             {qrData.isDynamic && (
