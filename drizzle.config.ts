@@ -1,11 +1,12 @@
 import { defineConfig } from "drizzle-kit"
 
+import { databaseConfig } from "./src/lib/db/env"
+
+const { url, authToken } = databaseConfig()
+
 export default defineConfig({
   schema: "./src/lib/db/schema.ts",
   out: "./drizzle",
   dialect: "turso",
-  dbCredentials: {
-    url: process.env.DATABASE_URL ?? "file:data/qr-creator.db",
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  },
+  dbCredentials: { url, authToken },
 })

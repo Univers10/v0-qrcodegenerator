@@ -84,9 +84,9 @@ Cette commande crée un compte de démo avec 9 QR codes et environ 2 500 scans r
 
 ## Déploiement (Vercel + Turso)
 
-1. Créez une base [Turso](https://turso.tech) et récupérez son URL `libsql://…` et un jeton.
-2. Dans Vercel, définissez `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` et `NEXT_PUBLIC_APP_URL` (l'URL publique, encodée dans les QR dynamiques).
-3. Déployez. Le build applique les migrations automatiquement.
+1. Dans le projet Vercel, ouvrez **Storage → Marketplace → Turso** et créez une base. L'intégration injecte `TURSO_DATABASE_URL` et `TURSO_AUTH_TOKEN`, reconnues automatiquement. Vous pouvez aussi définir vous-même `DATABASE_URL` et `DATABASE_AUTH_TOKEN`.
+2. Ajoutez `BETTER_AUTH_SECRET`, une valeur aléatoire de 32 octets ou plus. `NEXT_PUBLIC_APP_URL` est facultative : sans elle, l'URL de production Vercel est utilisée. Si vous avez un domaine personnalisé, renseignez-le ici, car c'est cette URL qui est encodée dans les QR dynamiques.
+3. Déployez. Le build applique les migrations. Sur Vercel, il échoue volontairement si aucune base distante n'est configurée.
 
 > ⚠️ Le système de fichiers de Vercel est éphémère : une base fichier `file:` ne convient qu'au développement local.
 

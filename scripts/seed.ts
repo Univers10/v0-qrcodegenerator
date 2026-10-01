@@ -12,16 +12,14 @@ import { hashPassword } from "better-auth/crypto"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/libsql"
 
+import { databaseConfig } from "../src/lib/db/env"
 import * as schema from "../src/lib/db/schema"
 import { applyTemplate, DEFAULT_DESIGN, DESIGN_TEMPLATES, type QrDesign } from "../src/lib/qr/design"
 
 const DEMO_EMAIL = "demo@qrcreator.local"
 const DEMO_PASSWORD = "demo-qrcreator-2026"
 
-const client = createClient({
-  url: process.env.DATABASE_URL ?? "file:data/qr-creator.db",
-  authToken: process.env.DATABASE_AUTH_TOKEN,
-})
+const client = createClient(databaseConfig())
 const db = drizzle(client, { schema })
 
 // Générateur pseudo-aléatoire déterministe (résultats reproductibles)
