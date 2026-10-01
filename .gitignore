@@ -20,3 +20,8 @@ npm-debug.log*
 
 # vercel
 .vercel
+
+# outillage agents ajouté par la CLI Vercel
+/.agents/
+/.claude/
+skills-lock.json
