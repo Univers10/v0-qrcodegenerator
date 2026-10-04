@@ -17,19 +17,25 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
 - **Générateur public sans compte** (QR statiques). Le brouillon est conservé si l'on crée un compte ensuite.
 
 ### Menu de restaurant
+- **Deux mises en page, quatre styles** :
+  - **Moderne** : grandes photos, carrousel « Coups de cœur », façon appli de livraison ;
+  - **Classique, Bistrot, Élégant** : carte gastronomique imprimée, avec typographie serif, prix alignés en pointillés et couverture en arche.
 - **Éditeur de carte** :
-  - établissement : logo, photo de couverture, horaires, téléphone, adresse, Wi-Fi clients ;
-  - catégories et plats réordonnables, avec photo, prix, description et disponibilité (« Épuisé ») ;
-  - 8 étiquettes : coup de cœur, nouveau, végétarien, vegan, sans gluten, sans lactose, épicé, halal ;
-  - menu d'exemple en un clic.
-- **Page publique mobile** :
-  - couverture, onglets de catégories collants qui suivent le défilement ;
+  - trois onglets : Carte, Établissement, Apparence ;
+  - catégories et plats réordonnables par glisser-déposer, lignes compactes qui se déplient ;
+  - déclinaisons de prix (verre ou bouteille, tailles, formules) ;
+  - 8 étiquettes (régimes, allergènes, coups de cœur), disponibilité « Épuisé » ;
+  - annulation après suppression.
+- **Aperçu en direct** dans un smartphone, à côté du QR code, mis à jour à chaque frappe.
+- **Page client** :
+  - onglets de catégories collants avec soulignement animé ;
   - recherche et filtres par régime ;
-  - fiche détaillée du plat ;
-  - raccourcis appel, itinéraire, Wi-Fi.
-- **Apparence** : 3 thèmes (moderne, élégant, bistrot), couleur d'accent et 8 devises dont le franc CFA, avec le bon format de prix.
-- **Aperçu** dans un cadre de smartphone depuis l'éditeur. Un menu est toujours dynamique : les prix se modifient sans réimprimer.
-- **Photos** :
+  - fiche plat avec photo bord à bord ;
+  - horaires, appel, itinéraire, Wi-Fi ;
+  - légende des pictogrammes.
+- **Devises** : 8, dont le franc CFA (sans décimales).
+- **Menu d'exemple** : 12 plats avec de vraies photos libres de droits (licence Unsplash), servies depuis `public/menu-demo/` (voir `CREDITS.md`).
+- **Photos des restaurateurs** :
   - recompressées en WEBP dans le navigateur, stockées dans la table `asset` ;
   - servies par `/api/assets/{id}` avec un cache CDN d'un an ;
   - type vérifié par signature binaire, SVG refusé ;

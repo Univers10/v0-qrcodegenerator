@@ -277,11 +277,11 @@ function Types() {
 }
 
 const MENU_FEATURES = [
-  { title: "Photos, prix et descriptions", text: "Une carte appétissante, lisible sur tous les téléphones, même en 3G." },
+  { title: "Photos, prix et déclinaisons", text: "Verre ou bouteille, tailles, formules : une carte claire et appétissante, même en 3G." },
   { title: "Allergènes et régimes", text: "Végétarien, vegan, sans gluten, halal… avec filtres pour vos clients." },
   { title: "Prix modifiables en direct", text: "Changez un tarif ou marquez un plat « Épuisé » : c'est immédiat, sans réimpression." },
   { title: "Infos pratiques", text: "Horaires, appel, itinéraire et Wi-Fi offert accessibles en un geste." },
-  { title: "Trois ambiances", text: "Moderne, élégant ou bistrot, à la couleur de votre établissement." },
+  { title: "Deux mises en page, quatre styles", text: "Photos en vedette façon appli, ou carte gastronomique aux prix alignés." },
   { title: "Toutes les devises", text: "Euro, franc CFA, dirham, dollar… avec le bon format de prix." },
 ]
 

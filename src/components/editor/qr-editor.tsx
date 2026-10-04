@@ -31,7 +31,7 @@ import { shortUrl } from "@/lib/site"
 import { cn } from "@/lib/utils"
 import { ContentForm } from "./content-form"
 import { DesignPanel } from "./design-panel"
-import { MenuPreviewButton } from "./menu-preview"
+import { MenuPhone, MenuPreviewButton } from "./menu-preview"
 import { ScanabilityBadge } from "./scanability-badge"
 import { TypePicker } from "./type-picker"
 
@@ -109,6 +109,8 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
   const [name, setName] = useState(initial?.name ?? "")
   const [nameTouched, setNameTouched] = useState(Boolean(initial))
   const [attempted, setAttempted] = useState(false)
+  const [previewTab, setPreviewTab] = useState<"menu" | "qr">("menu")
+  const showMenuPreview = type === "menu" && previewTab === "menu"
   const [pending, startTransition] = useTransition()
   const svgRef = useRef<string | null>(null)
 
@@ -224,10 +226,32 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
         <Card className="overflow-hidden py-0">
           <div className="relative border-b bg-[radial-gradient(circle_at_50%_0%,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_70%)] p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">Aperçu en direct</span>
-              <ScanabilityBadge design={design} />
+              {type === "menu" ? (
+                <div className="flex rounded-lg bg-muted p-0.5 text-xs font-medium" role="tablist" aria-label="Aperçu">
+                  {(["menu", "qr"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={previewTab === tab}
+                      onClick={() => setPreviewTab(tab)}
+                      className={cn(
+                        "rounded-md px-3 py-1.5 transition-colors",
+                        previewTab === tab ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {tab === "menu" ? "Carte" : "QR code"}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-sm font-medium">Aperçu en direct</span>
+              )}
+              {showMenuPreview ? <MenuPreviewButton data={data} /> : <ScanabilityBadge design={design} />}
             </div>
-            <div className="relative mx-auto max-w-[300px]">
+            {showMenuPreview && <MenuPhone data={data} />}
+            {/* Le QR reste monté (masqué) : son SVG sert aux téléchargements. */}
+            <div className={cn("relative mx-auto max-w-[300px]", showMenuPreview && "hidden")}>
               <div className={cn("rounded-2xl bg-white/50 p-1 shadow-xl shadow-black/5 transition-opacity", !valid && !isDynamic && "opacity-30")}>
                 <QrImage payload={payload} design={design} debounce={120} onRender={onRender} alt="Aperçu du QR code" />
               </div>
@@ -242,8 +266,6 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
           </div>
 
           <CardContent className="space-y-5 p-5">
-            {type === "menu" && <MenuPreviewButton data={data} />}
-
             <ModeChoice
               mode={mode}
               isDynamic={isDynamic}
