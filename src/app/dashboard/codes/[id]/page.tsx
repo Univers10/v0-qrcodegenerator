@@ -1,4 +1,4 @@
-import { CalendarClock, FileSpreadsheet, Lock, MoreHorizontal, Pause, Pencil, ScanLine, Zap } from "lucide-react"
+import { CalendarClock, FileSpreadsheet, Lock, MoreHorizontal, Pause, Pencil, ScanLine, UtensilsCrossed, Zap } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -113,6 +113,13 @@ export default async function CodeDetailPage({ params, searchParams }: Params) {
                 <a href={destination} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-primary hover:underline">
                   {destination}
                 </a>
+              )}
+              {code.type === "menu" && (
+                <Button asChild variant="outline" size="sm" className="mt-1 w-full">
+                  <a href={`/p/${code.shortCode}`} target="_blank" rel="noopener noreferrer">
+                    <UtensilsCrossed /> Voir la carte en ligne
+                  </a>
+                </Button>
               )}
               {code.isDynamic && (
                 <p className="text-xs text-muted-foreground">

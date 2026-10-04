@@ -8,6 +8,7 @@ const COLUMNS = [
     title: "Produit",
     links: [
       { href: "/generator", label: "Générateur gratuit" },
+      { href: "/#menus", label: "Menus de restaurant" },
       { href: "/#fonctionnalites", label: "Fonctionnalités" },
       { href: "/#analytique", label: "Analytique" },
       { href: "/#types", label: "Types de QR codes" },

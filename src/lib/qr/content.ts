@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { countItems, defaultMenu, menuSchema } from "./menu"
+
 /* ------------------------------------------------------------------ */
 /* Schémas de contenu par type de QR code                              */
 /* ------------------------------------------------------------------ */
@@ -91,6 +93,7 @@ export const contentSchemas = {
       message: "La fin doit être après le début",
       path: ["end"],
     }),
+  menu: menuSchema,
 } as const
 
 export type QrType = keyof typeof contentSchemas
@@ -147,6 +150,8 @@ export function defaultContent(type: QrType): Record<string, unknown> {
       end.setHours(20)
       return { title: "", location: "", start: toLocalInput(start), end: toLocalInput(end), description: "" }
     }
+    case "menu":
+      return defaultMenu()
   }
 }
 
@@ -159,7 +164,8 @@ export function parseContent(type: QrType, input: unknown): ParseResult {
   if (result.success) return { success: true, data: result.data as QrContent }
   const errors: Record<string, string> = {}
   for (const issue of result.error.issues) {
-    const key = String(issue.path[0] ?? "_")
+    // Chemin complet (ex. « sections.0.items.2.name ») pour les contenus imbriqués comme les menus.
+    const key = issue.path.length ? issue.path.map(String).join(".") : "_"
     errors[key] ??= issue.message
   }
   return { success: false, errors }
@@ -294,8 +300,14 @@ export function encodeContent(type: QrType, data: QrContent): string {
       return mapsUrl(data as QrContent<"location">)
     case "event":
       return buildEvent(data as QrContent<"event">)
+    case "menu":
+      // Un menu n'existe que sous forme dynamique : la page est servie par /p/{code}.
+      return ""
   }
 }
+
+/** Types qui n'ont de sens qu'en QR dynamique (le contenu vit sur une page web). */
+export const DYNAMIC_ONLY_TYPES: QrType[] = ["menu"]
 
 /** Capacité maximale (octets, mode binaire, version 40) selon le niveau de correction. */
 const QR_CAPACITY = { L: 2953, M: 2331, Q: 1663, H: 1273 } as const
@@ -333,6 +345,11 @@ export function summarizeContent(type: QrType, data: QrContent): string {
       return String(d.label || `${d.latitude}, ${d.longitude}`)
     case "event":
       return String(d.title ?? "")
+    case "menu": {
+      const n = countItems(d as { sections?: { items?: unknown[] }[] })
+      const name = String((d.restaurant as { name?: string } | undefined)?.name ?? "")
+      return `${name || "Menu"} · ${n} plat${n > 1 ? "s" : ""}`
+    }
   }
 }
 

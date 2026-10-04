@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
+import { after } from "next/server"
 
 import { auth, getSession } from "@/lib/auth"
+import { collectOrphanAssets } from "@/lib/server/asset-service"
 import {
   createQrCode,
   deleteQrCode,
@@ -46,6 +48,8 @@ export async function updateQrAction(id: string, input: unknown): Promise<Action
   if (!parsed.ok) return parsed
   const updated = await updateQrCode(uid, id, parsed.value)
   if (!updated) return { ok: false, error: "QR code introuvable" }
+  // Les photos remplacées deviennent orphelines : nettoyage après la réponse.
+  after(() => collectOrphanAssets(uid).catch((error) => console.error("[assets]", error)))
   refresh(id)
   return { ok: true, data: { id } }
 }
@@ -55,6 +59,7 @@ export async function deleteQrAction(id: string): Promise<ActionResult> {
   if (!uid) return UNAUTHORIZED
   const deleted = await deleteQrCode(uid, id)
   if (!deleted) return { ok: false, error: "QR code introuvable" }
+  after(() => collectOrphanAssets(uid).catch((error) => console.error("[assets]", error)))
   refresh()
   return { ok: true, data: undefined }
 }

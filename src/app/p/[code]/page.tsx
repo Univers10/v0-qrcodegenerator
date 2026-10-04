@@ -17,8 +17,10 @@ import Link from "next/link"
 
 import { CopyButton, RevealSecret } from "@/components/landing/copy-button"
 import { LogoMark } from "@/components/logo"
+import { MenuView } from "@/components/menu/menu-view"
 import { Button } from "@/components/ui/button"
 import { encodeContent, formatWallTime, mapsUrl, normalizeUrl, toIcsDate, type QrContent } from "@/lib/qr/content"
+import { toViewMenu, type MenuData } from "@/lib/qr/menu"
 import { TYPE_META } from "@/lib/qr/meta"
 import { getQrCodeByShortCode, type QrCodeRecord } from "@/lib/server/qr-service"
 
@@ -28,12 +30,23 @@ type Props = { params: Promise<{ code: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const qr = await getQrCodeByShortCode((await params).code)
+  if (qr?.status === "active" && qr.type === "menu") {
+    const menu = qr.data as MenuData
+    return {
+      title: { absolute: `${menu.restaurant.name} — Menu` },
+      description: menu.restaurant.tagline || `La carte de ${menu.restaurant.name}`,
+      robots: { index: false },
+    }
+  }
   return { title: qr && qr.status === "active" ? qr.name : "QR code", robots: { index: false } }
 }
 
 export default async function LandingPage({ params }: Props) {
   const { code } = await params
   const qr = await getQrCodeByShortCode(code)
+
+  // La carte d'un restaurant occupe tout l'écran, avec sa propre identité visuelle.
+  if (qr?.status === "active" && qr.type === "menu") return <MenuView menu={toViewMenu(qr.data)} />
 
   return (
     <div className="relative flex min-h-svh flex-col items-center bg-muted/40 px-4 py-10">

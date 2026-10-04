@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 
 export function TypePicker({ value, onChange, disabled }: { value: QrType; onChange: (t: QrType) => void; disabled?: boolean }) {
   return (
-    <div role="radiogroup" aria-label="Type de QR code" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+    <div role="radiogroup" aria-label="Type de QR code" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
       {TYPE_ORDER.map((type) => {
         const meta = TYPE_META[type]
         const Icon = meta.icon

@@ -24,6 +24,7 @@ import {
 import Link from "next/link"
 
 import { HeroDemo } from "@/components/marketing/hero-demo"
+import { MenuShowcasePhone } from "@/components/marketing/menu-showcase"
 import { Reveal } from "@/components/marketing/reveal"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +39,7 @@ export default function HomePage() {
       <UseCases />
       <Features />
       <Types />
+      <RestaurantMenus />
       <Steps />
       <AnalyticsShowcase />
       <Comparison />
@@ -241,11 +243,11 @@ function Types() {
       <div className="container-page">
         <SectionHeading
           id="types"
-          eyebrow="10 types de contenu"
+          eyebrow="11 types de contenu"
           title="Un QR code pour chaque usage"
           text="Du simple lien à la carte de visite complète, chaque type génère le bon format, reconnu par tous les smartphones."
         />
-        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {TYPE_ORDER.map((type, i) => {
             const meta = TYPE_META[type]
             return (
@@ -269,6 +271,67 @@ function Types() {
             )
           })}
         </div>
+      </div>
+    </section>
+  )
+}
+
+const MENU_FEATURES = [
+  { title: "Photos, prix et descriptions", text: "Une carte appétissante, lisible sur tous les téléphones, même en 3G." },
+  { title: "Allergènes et régimes", text: "Végétarien, vegan, sans gluten, halal… avec filtres pour vos clients." },
+  { title: "Prix modifiables en direct", text: "Changez un tarif ou marquez un plat « Épuisé » : c'est immédiat, sans réimpression." },
+  { title: "Infos pratiques", text: "Horaires, appel, itinéraire et Wi-Fi offert accessibles en un geste." },
+  { title: "Trois ambiances", text: "Moderne, élégant ou bistrot, à la couleur de votre établissement." },
+  { title: "Toutes les devises", text: "Euro, franc CFA, dirham, dollar… avec le bon format de prix." },
+]
+
+function RestaurantMenus() {
+  return (
+    <section className="relative overflow-hidden py-24">
+      <div className="absolute inset-x-0 top-0 -z-10 h-full bg-[radial-gradient(60%_50%_at_80%_40%,oklch(0.85_0.1_70/0.25),transparent)]" />
+      <div className="container-page grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
+        <div>
+          <Reveal>
+            <p id="menus" className="scroll-mt-24 text-sm font-medium text-primary">
+              Restaurants, cafés et hôtels
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+              Votre carte digitale, prête en 10 minutes.
+            </h2>
+            <p className="mt-4 text-pretty text-muted-foreground">
+              Un QR code sur chaque table ouvre une carte soignée, à votre image. Ajoutez vos plats et vos photos, et
+              mettez la carte à jour quand vous voulez : le QR code imprimé ne change jamais.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2">
+            {MENU_FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.04} className="flex gap-3">
+                <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                  <Check className="size-3.5" />
+                </span>
+                <span>
+                  <span className="block text-sm font-medium">{f.title}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">{f.text}</span>
+                </span>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.2}>
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 px-6 text-base shadow-lg shadow-primary/25">
+                <Link href={`/signup?next=${encodeURIComponent("/dashboard/codes/new?type=menu")}`}>
+                  <UtensilsCrossed /> Créer mon menu
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base">
+                <Link href="/generator?type=menu">Essayer l&apos;éditeur</Link>
+              </Button>
+            </div>
+          </Reveal>
+        </div>
+        <Reveal delay={0.1}>
+          <MenuShowcasePhone />
+        </Reveal>
       </div>
     </section>
   )
@@ -447,6 +510,10 @@ const FAQ = [
   {
     q: "Quelles données sont collectées lors d'un scan ?",
     a: "Le type d'appareil, le système, le navigateur, le pays et la ville approximative. Les adresses IP ne sont jamais enregistrées : nous ne conservons qu'une empreinte anonyme et quotidienne pour compter les visiteurs uniques.",
+  },
+  {
+    q: "Comment fonctionne le menu digital pour restaurant ?",
+    a: "Composez votre carte (catégories, plats, prix, photos, allergènes) puis imprimez le QR code sur vos tables. Vos clients ouvrent la carte sans application. Chaque modification, comme un prix, un nouveau plat ou un plat épuisé, est visible immédiatement, sans réimprimer.",
   },
   {
     q: "Ai-je besoin d'un compte ?",

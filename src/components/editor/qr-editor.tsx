@@ -17,6 +17,7 @@ import { createQrAction, updateQrAction } from "@/lib/actions"
 import { useSession } from "@/lib/auth/client"
 import {
   defaultContent,
+  DYNAMIC_ONLY_TYPES,
   encodeContent,
   fitsInQr,
   parseContent,
@@ -30,6 +31,7 @@ import { shortUrl } from "@/lib/site"
 import { cn } from "@/lib/utils"
 import { ContentForm } from "./content-form"
 import { DesignPanel } from "./design-panel"
+import { MenuPreviewButton } from "./menu-preview"
 import { ScanabilityBadge } from "./scanability-badge"
 import { TypePicker } from "./type-picker"
 
@@ -91,8 +93,19 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
   const [dataByType, setDataByType] = useState<Partial<Record<QrType, Values>>>(() =>
     initial ? { [initial.type]: initial.data as Values } : draft ? { [draft.type]: draft.data } : {},
   )
-  const [design, setDesign] = useState<QrDesign>(initial?.design ?? draft?.design ?? DEFAULT_DESIGN)
-  const [isDynamic, setIsDynamic] = useState(initial?.isDynamic ?? mode !== "public")
+  const [design, setDesign] = useState<QrDesign>(
+    () =>
+      initial?.design ??
+      draft?.design ??
+      // Arrivée directe sur un menu : cadre « MENU » proposé d'emblée.
+      (initialType === "menu"
+        ? { ...DEFAULT_DESIGN, frame: { ...DEFAULT_DESIGN.frame, style: "bottom", text: "MENU" } }
+        : DEFAULT_DESIGN),
+  )
+  const [dynamicChoice, setIsDynamic] = useState(initial?.isDynamic ?? mode !== "public")
+  // Un menu n'existe qu'en dynamique (la carte est une page web modifiable).
+  const forcedDynamic = DYNAMIC_ONLY_TYPES.includes(type)
+  const isDynamic = forcedDynamic || dynamicChoice
   const [name, setName] = useState(initial?.name ?? "")
   const [nameTouched, setNameTouched] = useState(Boolean(initial))
   const [attempted, setAttempted] = useState(false)
@@ -191,12 +204,15 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
             onChange={(t) => {
               setType(t)
               setAttempted(false)
+              // Pour un menu, un cadre « MENU » invite clairement au scan sur les tables.
+              if (t === "menu" && mode !== "edit" && design.frame.style === "none")
+                setDesign({ ...design, frame: { ...design.frame, style: "bottom", text: "MENU" }, errorCorrection: "Q" })
             }}
           />
         </Section>
 
         <Section step={2} title={TYPE_META[type].label} description={TYPE_META[type].description}>
-          <ContentForm type={type} values={data} errors={visibleErrors} onChange={setData} />
+          <ContentForm type={type} values={data} errors={visibleErrors} onChange={setData} canUpload={mode !== "public"} />
         </Section>
 
         <Section step={3} title="Design" description="Modèles, couleurs, logo et cadre : rendez-le unique.">
@@ -226,11 +242,14 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
           </div>
 
           <CardContent className="space-y-5 p-5">
+            {type === "menu" && <MenuPreviewButton data={data} />}
+
             <ModeChoice
               mode={mode}
               isDynamic={isDynamic}
               onChange={setIsDynamic}
               locked={mode === "public"}
+              forced={forcedDynamic}
             />
 
             {isDynamic && (
@@ -286,7 +305,9 @@ function EditorInner({ mode, initial, initialType, draft }: Props & { draft: Dra
                 disabledReason={
                   !valid
                     ? "Complétez le contenu pour télécharger."
-                    : unsavedDynamic
+                    : mode === "public" && unsavedDynamic
+                      ? "Créez un compte gratuit pour publier ce menu et télécharger son QR code."
+                      : unsavedDynamic
                       ? "Créez le QR code pour obtenir son lien dynamique définitif."
                       : undefined
                 }
@@ -338,11 +359,13 @@ function ModeChoice({
   isDynamic,
   onChange,
   locked,
+  forced,
 }: {
   mode: Props["mode"]
   isDynamic: boolean
   onChange: (v: boolean) => void
   locked: boolean
+  forced: boolean
 }) {
   const options = [
     {
@@ -359,7 +382,7 @@ function ModeChoice({
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Type de QR code">
         {options.map((opt) => {
           const active = isDynamic === opt.value
-          const disabled = locked && opt.value
+          const disabled = forced ? !opt.value : locked && opt.value
           return (
             <button
               key={opt.title}
@@ -379,14 +402,18 @@ function ModeChoice({
                 {opt.title}
               </span>
               <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">{opt.text}</span>
-              {opt.badge && !locked && (
+              {opt.badge && !locked && !forced && (
                 <Badge className="absolute -top-2 right-2 h-4 px-1.5 text-[9px]">{opt.badge}</Badge>
               )}
             </button>
           )
         })}
       </div>
-      {locked && (
+      {forced ? (
+        <p className="text-xs text-muted-foreground">
+          Un menu est toujours dynamique : modifiez plats et prix à tout moment, sans réimprimer le QR code.
+        </p>
+      ) : locked && (
         <p className="text-xs text-muted-foreground">
           Les QR dynamiques nécessitent un{" "}
           <Link href="/signup" className="font-medium text-primary hover:underline">

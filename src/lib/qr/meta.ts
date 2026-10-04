@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Phone,
   Type,
+  UtensilsCrossed,
   Wifi,
   type LucideIcon,
 } from "lucide-react"
@@ -15,6 +16,7 @@ import {
 import type { QrType } from "./content"
 
 export const TYPE_META: Record<QrType, { label: string; description: string; icon: LucideIcon; accent: string }> = {
+  menu: { label: "Menu restaurant", description: "Carte digitale avec photos et prix", icon: UtensilsCrossed, accent: "#d97706" },
   url: { label: "Site web", description: "Redirigez vers n'importe quelle page", icon: Globe, accent: "#6366f1" },
   vcard: { label: "Carte de visite", description: "Partagez vos coordonnées", icon: Contact, accent: "#0ea5e9" },
   wifi: { label: "Wi-Fi", description: "Connexion au réseau en un scan", icon: Wifi, accent: "#14b8a6" },
@@ -28,4 +30,4 @@ export const TYPE_META: Record<QrType, { label: string; description: string; ico
 }
 
 /** Ordre d'affichage des types dans l'interface. */
-export const TYPE_ORDER: QrType[] = ["url", "vcard", "wifi", "whatsapp", "email", "phone", "sms", "event", "location", "text"]
+export const TYPE_ORDER: QrType[] = ["url", "menu", "vcard", "wifi", "whatsapp", "email", "phone", "sms", "event", "location", "text"]

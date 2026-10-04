@@ -7,7 +7,7 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
 ## Fonctionnalités
 
 ### Générateur et design
-- **10 types de contenu** : site web, carte de visite (vCard), Wi-Fi, WhatsApp, email, appel, SMS, événement (iCalendar), localisation, texte.
+- **11 types de contenu** : site web, **menu de restaurant**, carte de visite (vCard), Wi-Fi, WhatsApp, email, appel, SMS, événement (iCalendar), localisation, texte.
 - **Validation en direct** de chaque champ (zod) et encodage au format standard reconnu par les smartphones (`WIFI:`, `mailto:`, `tel:`, `SMSTO:`, vCard 3.0, VEVENT…).
 - **Design** : 8 modèles, 6 formes de modules, styles des repères, couleurs, dégradés linéaires ou radiaux, fond transparent.
 - **Logo** : import par glisser-déposer, redimensionné automatiquement côté client, taille et marge réglables, modules masqués sous le logo.
@@ -15,6 +15,25 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
 - **Analyse de lisibilité** : un score (contraste WCAG, logo par rapport au niveau de correction, marge, motif inversé) et des conseils.
 - **Exports HD** : PNG ou JPG jusqu'à 4096 px, SVG vectoriel, PDF A4 prêt à imprimer, copie dans le presse-papiers.
 - **Générateur public sans compte** (QR statiques). Le brouillon est conservé si l'on crée un compte ensuite.
+
+### Menu de restaurant
+- **Éditeur de carte** :
+  - établissement : logo, photo de couverture, horaires, téléphone, adresse, Wi-Fi clients ;
+  - catégories et plats réordonnables, avec photo, prix, description et disponibilité (« Épuisé ») ;
+  - 8 étiquettes : coup de cœur, nouveau, végétarien, vegan, sans gluten, sans lactose, épicé, halal ;
+  - menu d'exemple en un clic.
+- **Page publique mobile** :
+  - couverture, onglets de catégories collants qui suivent le défilement ;
+  - recherche et filtres par régime ;
+  - fiche détaillée du plat ;
+  - raccourcis appel, itinéraire, Wi-Fi.
+- **Apparence** : 3 thèmes (moderne, élégant, bistrot), couleur d'accent et 8 devises dont le franc CFA, avec le bon format de prix.
+- **Aperçu** dans un cadre de smartphone depuis l'éditeur. Un menu est toujours dynamique : les prix se modifient sans réimprimer.
+- **Photos** :
+  - recompressées en WEBP dans le navigateur, stockées dans la table `asset` ;
+  - servies par `/api/assets/{id}` avec un cache CDN d'un an ;
+  - type vérifié par signature binaire, SVG refusé ;
+  - quotas par compte et nettoyage automatique des images orphelines.
 
 ### QR codes dynamiques
 - Lien court `/r/{code}` avec une **redirection 302 instantanée**. Le scan est enregistré après l'envoi de la réponse (`after()`).

@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { blob, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -117,6 +117,24 @@ export const scan = sqliteTable(
     visitorHash: text("visitor_hash").notNull(),
   },
   (t) => [index("scan_qr_created_idx").on(t.qrCodeId, t.createdAt)],
+)
+
+/** Images importées (photos de menu, logos, couvertures), servies par /api/assets/{id}. */
+export const asset = sqliteTable(
+  "asset",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    data: blob("data", { mode: "buffer" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("asset_user_idx").on(t.userId, t.createdAt)],
 )
 
 export const userRelations = relations(user, ({ many }) => ({

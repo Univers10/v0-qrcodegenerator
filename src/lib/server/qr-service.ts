@@ -6,7 +6,7 @@ import { z } from "zod"
 
 import { db } from "@/lib/db"
 import { qrCode, type QrCodeRow } from "@/lib/db/schema"
-import { encodeContent, fitsInQr, isQrType, parseContent, type QrContent, type QrType } from "@/lib/qr/content"
+import { DYNAMIC_ONLY_TYPES, encodeContent, fitsInQr, isQrType, parseContent, type QrContent, type QrType } from "@/lib/qr/content"
 import { designSchema, parseDesign, type QrDesign } from "@/lib/qr/design"
 
 export type QrCodeRecord = Omit<QrCodeRow, "data" | "design" | "type"> & {
@@ -39,11 +39,13 @@ export function validateQrInput(input: unknown): ValidationResult {
   const type = parsed.data.type as QrType
   const content = parseContent(type, parsed.data.data)
   if (!content.success) return { ok: false, error: "Contenu invalide", fieldErrors: content.errors }
+  // Certains types (menu) n'existent qu'en dynamique : la page est servie par l'application.
+  const isDynamic = parsed.data.isDynamic || DYNAMIC_ONLY_TYPES.includes(type)
   // Un QR statique encode tout son contenu : il doit tenir dans la capacité du symbole.
   const level = parsed.data.design.logo.src && parsed.data.design.errorCorrection === "L" ? "M" : parsed.data.design.errorCorrection
-  if (!parsed.data.isDynamic && !fitsInQr(encodeContent(type, content.data), level))
+  if (!isDynamic && !fitsInQr(encodeContent(type, content.data), level))
     return { ok: false, error: "Contenu trop long pour un QR statique : passez en dynamique ou baissez le niveau de correction." }
-  return { ok: true, value: { ...parsed.data, type, data: content.data } }
+  return { ok: true, value: { ...parsed.data, isDynamic, type, data: content.data } }
 }
 
 // Alphabet sans caractères ambigus (0/O, 1/l/I)

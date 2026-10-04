@@ -15,6 +15,7 @@ import { drizzle } from "drizzle-orm/libsql"
 import { databaseConfig } from "../src/lib/db/env"
 import * as schema from "../src/lib/db/schema"
 import { applyTemplate, DEFAULT_DESIGN, DESIGN_TEMPLATES, type QrDesign } from "../src/lib/qr/design"
+import { menuSchema, sampleMenu } from "../src/lib/qr/menu"
 
 const DEMO_EMAIL = "demo@qrcreator.local"
 const DEMO_PASSWORD = "demo-qrcreator-2026"
@@ -45,7 +46,7 @@ const frame = (text: string, color: string): Partial<QrDesign> => ({
 const CODES: {
   name: string
   type: string
-  data: Record<string, unknown>
+  data: unknown
   design: QrDesign
   isDynamic: boolean
   status?: "active" | "paused"
@@ -54,8 +55,8 @@ const CODES: {
 }[] = [
   {
     name: "Menu — Le Bistrot des Halles",
-    type: "url",
-    data: { url: "https://bistrot-des-halles.fr/menu" },
+    type: "menu",
+    data: menuSchema.parse(sampleMenu()),
     design: template("sunset", frame("MENU", "#ea580c")),
     isDynamic: true,
     weight: 9,

@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { QrType } from "@/lib/qr/content"
 import { cn } from "@/lib/utils"
+import { MenuBuilder } from "./menu-builder"
 
 type Values = Record<string, unknown>
 
@@ -20,6 +21,8 @@ type Props = {
   values: Values
   errors: Record<string, string>
   onChange: (values: Values) => void
+  /** Envoi d'images autorisé (compte connecté). */
+  canUpload?: boolean
 }
 
 type FieldProps = {
@@ -35,7 +38,7 @@ type FieldProps = {
   maxLength?: number
 }
 
-export function ContentForm({ type, values, errors, onChange }: Props) {
+export function ContentForm({ type, values, errors, onChange, canUpload = false }: Props) {
   const set = (patch: Values) => onChange({ ...values, ...patch })
   const str = (name: string) => String(values[name] ?? "")
 
@@ -150,6 +153,8 @@ export function ContentForm({ type, values, errors, onChange }: Props) {
       )
     case "location":
       return <LocationFields set={set} field={field} />
+    case "menu":
+      return <MenuBuilder values={values} errors={errors} onChange={onChange} canUpload={canUpload} />
     case "event":
       return (
         <div className="grid gap-4 sm:grid-cols-2">

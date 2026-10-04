@@ -131,7 +131,7 @@ function Onboarding({ firstName }: { firstName: string }) {
         </CardContent>
       </Card>
       <p className="mt-10 mb-4 text-sm font-medium">Ou commencez par un type</p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
         {TYPE_ORDER.map((type) => {
           const meta = TYPE_META[type]
           return (
