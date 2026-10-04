@@ -21,15 +21,60 @@ export type MenuTag = (typeof MENU_TAGS)[number]["value"]
 export const DIET_TAGS: MenuTag[] = ["vegetarian", "vegan", "gluten-free", "lactose-free", "halal"]
 
 export const CURRENCIES = [
-  { value: "EUR", label: "Euro (€)" },
-  { value: "XOF", label: "Franc CFA BCEAO (F CFA)" },
-  { value: "XAF", label: "Franc CFA BEAC (FCFA)" },
-  { value: "MAD", label: "Dirham marocain (MAD)" },
-  { value: "CHF", label: "Franc suisse (CHF)" },
-  { value: "CAD", label: "Dollar canadien ($ CA)" },
-  { value: "USD", label: "Dollar américain ($)" },
-  { value: "GBP", label: "Livre sterling (£)" },
+  // Afrique de l'Ouest et centrale
+  { value: "XOF", label: "Franc CFA BCEAO", hint: "Côte d'Ivoire, Sénégal, Mali, Burkina, Bénin, Togo, Niger", region: "Afrique", decimals: 0 },
+  { value: "XAF", label: "Franc CFA BEAC", hint: "Cameroun, Gabon, Congo, Tchad, Centrafrique", region: "Afrique", decimals: 0 },
+  { value: "GNF", label: "Franc guinéen", hint: "Guinée", region: "Afrique", decimals: 0 },
+  { value: "CDF", label: "Franc congolais", hint: "RD Congo", region: "Afrique", decimals: 0 },
+  { value: "NGN", label: "Naira", hint: "Nigeria", region: "Afrique", decimals: 2 },
+  { value: "GHS", label: "Cedi", hint: "Ghana", region: "Afrique", decimals: 2 },
+  { value: "RWF", label: "Franc rwandais", hint: "Rwanda", region: "Afrique", decimals: 0 },
+  { value: "MGA", label: "Ariary", hint: "Madagascar", region: "Afrique", decimals: 0 },
+  // Maghreb
+  { value: "MAD", label: "Dirham marocain", hint: "Maroc", region: "Maghreb", decimals: 2 },
+  { value: "TND", label: "Dinar tunisien", hint: "Tunisie", region: "Maghreb", decimals: 2 },
+  { value: "DZD", label: "Dinar algérien", hint: "Algérie", region: "Maghreb", decimals: 0 },
+  // Europe et Amérique du Nord
+  { value: "EUR", label: "Euro", hint: "France, Belgique, zone euro", region: "Europe & Amérique", decimals: 2 },
+  { value: "CHF", label: "Franc suisse", hint: "Suisse", region: "Europe & Amérique", decimals: 2 },
+  { value: "GBP", label: "Livre sterling", hint: "Royaume-Uni", region: "Europe & Amérique", decimals: 2 },
+  { value: "CAD", label: "Dollar canadien", hint: "Canada", region: "Europe & Amérique", decimals: 2 },
+  { value: "USD", label: "Dollar américain", hint: "États-Unis", region: "Europe & Amérique", decimals: 2 },
 ] as const
+
+export type CurrencyCode = (typeof CURRENCIES)[number]["value"]
+export const DEFAULT_CURRENCY: CurrencyCode = "XOF"
+const CURRENCY_CODES = CURRENCIES.map((c) => c.value) as unknown as [CurrencyCode, ...CurrencyCode[]]
+
+export function isCurrency(value: unknown): value is CurrencyCode {
+  return typeof value === "string" && (CURRENCY_CODES as readonly string[]).includes(value)
+}
+
+/** Symbole affiché (ex. « F CFA », « € »). */
+export function currencySymbol(currency: string) {
+  try {
+    return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).formatToParts(1).find((p) => p.type === "currency")?.value ?? currency
+  } catch {
+    return currency
+  }
+}
+
+/**
+ * Parités fixes officielles (franc CFA ↔ euro : 1 € = 655,957 F CFA ; XOF = XAF).
+ * Elles permettent de convertir une carte sans recourir à un taux de change variable.
+ */
+const EUR_PER_UNIT: Partial<Record<CurrencyCode, number>> = { EUR: 1, XOF: 1 / 655.957, XAF: 1 / 655.957 }
+
+export function canConvert(from: string, to: string) {
+  return from !== to && from in EUR_PER_UNIT && to in EUR_PER_UNIT
+}
+
+/** Convertit un prix selon la parité fixe, arrondi au « prix rond » usuel de la devise cible. */
+export function convertPrice(value: number, from: CurrencyCode, to: CurrencyCode) {
+  const raw = (value * EUR_PER_UNIT[from]!) / EUR_PER_UNIT[to]!
+  if (to === "XOF" || to === "XAF") return Math.max(50, Math.round(raw / 50) * 50)
+  return Math.round(raw * 10) / 10
+}
 
 /**
  * Deux familles de mise en page :
@@ -103,7 +148,7 @@ export const menuSchema = z.object({
     wifiSsid: text(64),
     wifiPassword: text(128),
   }),
-  currency: z.enum(CURRENCIES.map((c) => c.value) as [string, ...string[]]).default("EUR"),
+  currency: z.enum(CURRENCY_CODES).default(DEFAULT_CURRENCY),
   theme: z.enum(MENU_THEMES.map((t) => t.value) as [MenuTheme, ...MenuTheme[]]).default("modern"),
   accent: z.string().regex(/^#[\da-f]{6}$/i, "Couleur invalide").default("#b45309"),
   note: text(300),
@@ -146,7 +191,7 @@ export function defaultMenu(): Record<string, unknown> {
       wifiSsid: "",
       wifiPassword: "",
     },
-    currency: "EUR",
+    currency: DEFAULT_CURRENCY,
     theme: "modern",
     accent: "#b45309",
     note: "Prix nets, service compris. Informations sur les allergènes disponibles sur demande.",
@@ -158,7 +203,10 @@ export function defaultMenu(): Record<string, unknown> {
  * Menu d'exemple complet, avec photos, pour démarrer en un clic.
  * `makeId` permet des identifiants stables (rendu serveur de la démo sur la page d'accueil).
  */
-export function sampleMenu(makeId: () => string = newId): Record<string, unknown> {
+export function sampleMenu(makeId: () => string = newId, currency: CurrencyCode = DEFAULT_CURRENCY): Record<string, unknown> {
+  // Prix de référence en F CFA (tarifs réalistes d'un bistrot à Abidjan ou Dakar), convertis pour les autres devises.
+  const p = (cfa: number) =>
+    currency === "XOF" || currency === "XAF" ? cfa : canConvert("XOF", currency) ? convertPrice(cfa, "XOF", currency) : Math.round(cfa / 600)
   const item = (
     name: string,
     description: string,
@@ -184,22 +232,23 @@ export function sampleMenu(makeId: () => string = newId): Record<string, unknown
       cuisine: "Bistronomie · Français",
       logo: null,
       cover: "/menu-demo/cover.webp",
-      phone: "+33 1 42 00 00 00",
-      address: "12 rue Montorgueil, 75002 Paris",
+      phone: "+225 07 00 00 00 00",
+      address: "Rue des Jardins, Cocody Deux-Plateaux, Abidjan",
       hours: "Mar – Sam · 12 h – 14 h 30, 19 h – 22 h 30",
       website: "",
       wifiSsid: "Bistrot-Invites",
       wifiPassword: "bonappetit",
     },
+    currency,
     sections: [
       {
         id: makeId(),
         name: "Entrées",
         description: "",
         items: [
-          item("Velouté de potimarron", "Crème de noisette torréfiée, graines de courge et feta", 9, ["vegetarian", "gluten-free"], "veloute"),
-          item("Œuf poché, champignons poêlés", "Pain de campagne grillé, tomates cerises rôties", 11, ["popular", "vegetarian"], "oeuf"),
-          item("Tartare de thon en cuillères", "Sauce ponzu, caviar d'aubergine, sésame", 14, ["new"], "tartare"),
+          item("Velouté de potimarron", "Crème de noisette torréfiée, graines de courge et feta", p(4500), ["vegetarian", "gluten-free"], "veloute"),
+          item("Œuf poché, champignons poêlés", "Pain de campagne grillé, tomates cerises rôties", p(5000), ["popular", "vegetarian"], "oeuf"),
+          item("Tartare de thon en cuillères", "Sauce ponzu, caviar d'aubergine, sésame", p(7500), ["new"], "tartare"),
         ],
       },
       {
@@ -207,10 +256,10 @@ export function sampleMenu(makeId: () => string = newId): Record<string, unknown
         name: "Plats",
         description: "Servis avec un accompagnement de saison",
         items: [
-          item("Demi-coquelet rôti au romarin", "Jus corsé, salade de romaine au parmesan", 22, ["popular"], "volaille"),
-          item("Risotto crémeux aux cèpes", "Parmesan affiné 24 mois, huile de truffe", 19, ["vegetarian"], "risotto"),
-          item("Entrecôte grillée, frites maison", "Bœuf maturé, sauce au poivre de Kampot", 28, [], "steak"),
-          item("Curry de légumes & dal", "Lait de coco, riz basmati, coriandre fraîche", 17, ["vegan", "spicy", "gluten-free"], "curry"),
+          item("Demi-coquelet rôti au romarin", "Jus corsé, salade de romaine au parmesan", p(12000), ["popular"], "volaille"),
+          item("Risotto crémeux aux cèpes", "Parmesan affiné 24 mois, huile de truffe", p(10000), ["vegetarian"], "risotto"),
+          item("Entrecôte grillée, frites maison", "Bœuf maturé, sauce au poivre de Kampot", p(15000), [], "steak"),
+          item("Curry de légumes & dal", "Lait de coco, riz basmati, coriandre fraîche", p(8500), ["vegan", "spicy", "gluten-free"], "curry"),
         ],
       },
       {
@@ -218,8 +267,8 @@ export function sampleMenu(makeId: () => string = newId): Record<string, unknown
         name: "Desserts",
         description: "",
         items: [
-          item("Tarte fine aux pommes", "Pâte sablée maison, cannelle, crème crue", 9, ["vegetarian", "popular"], "tarte"),
-          item("Crème au chocolat noir", "Chantilly vanillée, framboises fraîches", 8, ["vegetarian", "gluten-free"], "mousse"),
+          item("Tarte fine aux pommes", "Pâte sablée maison, cannelle, crème crue", p(4000), ["vegetarian", "popular"], "tarte"),
+          item("Crème au chocolat noir", "Chantilly vanillée, framboises fraîches", p(3500), ["vegetarian", "gluten-free"], "mousse"),
         ],
       },
       {
@@ -227,14 +276,14 @@ export function sampleMenu(makeId: () => string = newId): Record<string, unknown
         name: "Boissons",
         description: "",
         items: [
-          item("Citronnade maison", "Citrons pressés, menthe fraîche, sirop d'agave", 5, ["vegan"], "citronnade"),
+          item("Citronnade maison", "Citrons pressés, menthe fraîche, sirop d'agave", p(2000), ["vegan"], "citronnade"),
           item("Vin rouge nature", "Côtes-du-Rhône, domaine du moment", null, [], "vin", [
-            ["Verre 12 cl", 7],
-            ["Bouteille", 34],
+            ["Verre 12 cl", p(4000)],
+            ["Bouteille", p(20000)],
           ]),
           item("Café", "Torréfaction artisanale", null, ["vegan"], "cafe", [
-            ["Expresso", 2.5],
-            ["Cappuccino", 4.5],
+            ["Expresso", p(1500)],
+            ["Cappuccino", p(2500)],
           ]),
         ],
       },
@@ -248,13 +297,13 @@ export function formatPrice(value: number | null, currency: string) {
   if (value === null || value === undefined) return ""
   let f = formatters.get(currency)
   if (!f) {
-    const noCents = currency === "XOF" || currency === "XAF"
+    // Le franc CFA (comme plusieurs devises africaines) n'a pas de subdivision : pas de décimales.
+    const decimals = CURRENCIES.find((c) => c.value === currency)?.decimals ?? 2
     f = new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency,
-      // Le franc CFA n'a pas de subdivision : pas de décimales.
-      minimumFractionDigits: noCents ? 0 : undefined,
-      maximumFractionDigits: noCents ? 0 : 2,
+      minimumFractionDigits: decimals === 0 ? 0 : undefined,
+      maximumFractionDigits: decimals,
     })
     formatters.set(currency, f)
   }
@@ -289,7 +338,7 @@ export function toViewMenu(raw: unknown): MenuData {
   const r = (raw ?? {}) as Record<string, unknown>
   const resto = (r.restaurant ?? {}) as Record<string, unknown>
   const sections = Array.isArray(r.sections) ? (r.sections as Record<string, unknown>[]) : []
-  const currency = CURRENCIES.some((c) => c.value === r.currency) ? String(r.currency) : "EUR"
+  const currency = isCurrency(r.currency) ? r.currency : DEFAULT_CURRENCY
   const theme = MENU_THEMES.some((t) => t.value === r.theme) ? (r.theme as MenuTheme) : "modern"
   return {
     restaurant: {

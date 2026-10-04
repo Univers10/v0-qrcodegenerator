@@ -40,13 +40,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   CURRENCIES,
+  DEFAULT_CURRENCY,
   MENU_ACCENTS,
   MENU_TAGS,
   MENU_THEMES,
@@ -54,7 +55,12 @@ import {
   emptySection,
   formatPrice,
   newId,
+  canConvert,
+  convertPrice,
+  currencySymbol,
+  isCurrency,
   sampleMenu,
+  type CurrencyCode,
   type MenuTag,
 } from "@/lib/qr/menu"
 import { uploadImage, type ImageKind } from "@/lib/upload"
@@ -84,7 +90,45 @@ const toNum = (v: unknown) => {
 export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
   const restaurant = (values.restaurant ?? {}) as Record<string, unknown>
   const sections = (Array.isArray(values.sections) ? values.sections : []) as Section[]
-  const currency = str(values.currency) || "EUR"
+  const currency: CurrencyCode = isCurrency(values.currency) ? values.currency : DEFAULT_CURRENCY
+
+  const changeCurrency = (next: CurrencyCode) => {
+    if (next === currency) return
+    const previous = { ...values }
+    set({ currency: next })
+    const hasPrices = sections.some((sec) => sec.items.some((it) => toNum(it.price) !== null || ((it.variants as Variant[]) ?? []).length > 0))
+    if (hasPrices && canConvert(currency, next)) {
+      const from = currency
+      toast(`Devise : ${currencyName(next)}`, {
+        description: `Convertir les prix au taux fixe (1 € = 655,957 F CFA) ?`,
+        duration: 10_000,
+        action: {
+          label: "Convertir",
+          onClick: () => {
+            const convert = (v: unknown) => {
+              const n = toNum(v)
+              return n === null ? v : convertPrice(n, from, next)
+            }
+            onChange({
+              ...previous,
+              currency: next,
+              sections: sections.map((sec) => ({
+                ...sec,
+                items: sec.items.map((it) => ({
+                  ...it,
+                  price: convert(it.price),
+                  variants: ((it.variants as Variant[]) ?? []).map((v) => ({ ...v, price: convert(v.price) })),
+                })),
+              })),
+            })
+            toast.success("Prix convertis")
+          },
+        },
+      })
+    } else if (hasPrices) {
+      toast(`Devise : ${currencyName(next)}`, { description: "Pensez à vérifier vos prix : ils ne sont pas convertis automatiquement." })
+    }
+  }
   const [selectedId, setSelectedId] = useState<string>(() => str(sections[0]?.id))
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -151,7 +195,7 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
             type="button"
             size="sm"
             onClick={() => {
-              const sample = sampleMenu()
+              const sample = sampleMenu(undefined, currency)
               onChange(sample)
               const first = (sample.sections as Section[])[0]
               setSelectedId(str(first.id))
@@ -180,6 +224,13 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
 
         {/* ---------------------------------------------------------------- Carte */}
         <TabsContent value="carte" className="space-y-4">
+          <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Devise de la carte</p>
+              <p className="text-xs text-muted-foreground">Exemple d&apos;affichage : {formatPrice(4500, currency)}</p>
+            </div>
+            <CurrencySelect value={currency} onChange={changeCurrency} className="sm:w-64" />
+          </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Catégories</span>
@@ -420,19 +471,8 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <span className="text-sm font-medium">Devise</span>
-              <Select value={currency} onValueChange={(c) => set({ currency: c })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Exemple : {formatPrice(12.5, currency)}</p>
+              <CurrencySelect value={currency} onChange={changeCurrency} />
+              <p className="text-xs text-muted-foreground">Exemple : {formatPrice(4500, currency)}</p>
             </div>
           </div>
           <Field label="Mention de bas de carte">
@@ -445,6 +485,41 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
 }
 
 /* ------------------------------------------------------------------ */
+
+const currencyName = (code: string) => CURRENCIES.find((c) => c.value === code)?.label ?? code
+const REGIONS = [...new Set(CURRENCIES.map((c) => c.region))]
+
+function CurrencySelect({ value, onChange, className }: { value: CurrencyCode; onChange: (c: CurrencyCode) => void; className?: string }) {
+  return (
+    <Select value={value} onValueChange={(c) => isCurrency(c) && onChange(c)}>
+      <SelectTrigger className={cn("w-full bg-background", className)} aria-label="Devise">
+        <SelectValue>
+          <span className="flex items-center gap-2">
+            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{value}</span>
+            {currencyName(value)}
+          </span>
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent className="max-h-80">
+        {REGIONS.map((region) => (
+          <SelectGroup key={region}>
+            <SelectLabel>{region}</SelectLabel>
+            {CURRENCIES.filter((c) => c.region === region).map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                <span className="flex flex-col">
+                  <span>
+                    {c.label} <span className="text-muted-foreground">· {currencySymbol(c.value)}</span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{c.hint}</span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
 
 function ErrorDot() {
   return <span className="size-1.5 rounded-full bg-destructive" aria-label="Champs à corriger" />
@@ -586,10 +661,10 @@ function SortableItemRow({
                     onChange={(e) => onChange({ price: e.target.value })}
                     placeholder={variants.length ? "Voir variantes" : "0,00"}
                     inputMode="decimal"
-                    className="pr-12 text-right tabular-nums"
+                    className="pr-14 text-right tabular-nums"
                     aria-invalid={Boolean(errors.price)}
                   />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">{currency}</span>
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">{currencySymbol(currency)}</span>
                 </div>
               </Field>
             </div>

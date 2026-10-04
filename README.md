@@ -33,7 +33,7 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
   - fiche plat avec photo bord à bord ;
   - horaires, appel, itinéraire, Wi-Fi ;
   - légende des pictogrammes.
-- **Devises** : 8, dont le franc CFA (sans décimales).
+- **Devises** : 16, regroupées par région. Le franc CFA (XOF) est la devise par défaut, sans décimales. Le sélecteur est en tête de l'onglet Carte. Entre XOF, XAF et EUR, les prix peuvent être convertis automatiquement à la parité fixe (1 € = 655,957 F CFA).
 - **Menu d'exemple** : 12 plats avec de vraies photos libres de droits (licence Unsplash), servies depuis `public/menu-demo/` (voir `CREDITS.md`).
 - **Photos des restaurateurs** :
   - recompressées en WEBP dans le navigateur, stockées dans la table `asset` ;
