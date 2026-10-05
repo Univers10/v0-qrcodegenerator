@@ -15,6 +15,13 @@
       "when": 1791141591282,
       "tag": "0001_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791194293582,
+      "tag": "0002_orders",
+      "breakpoints": true
     }
   ]
 }

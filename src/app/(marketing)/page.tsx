@@ -277,10 +277,11 @@ function Types() {
 }
 
 const MENU_FEATURES = [
+  { title: "Commande en ligne", text: "Panier, tailles et suppléments, livraison ou à emporter : la commande arrive sur votre WhatsApp." },
+  { title: "Suivi des commandes", text: "Tableau de bord en direct avec alerte sonore, statuts et page de suivi pour vos clients." },
   { title: "Photos, prix et déclinaisons", text: "Verre ou bouteille, tailles, formules : une carte claire et appétissante, même en 3G." },
   { title: "Allergènes et régimes", text: "Végétarien, vegan, sans gluten, halal… avec filtres pour vos clients." },
   { title: "Prix modifiables en direct", text: "Changez un tarif ou marquez un plat « Épuisé » : c'est immédiat, sans réimpression." },
-  { title: "Infos pratiques", text: "Horaires, appel, itinéraire et Wi-Fi offert accessibles en un geste." },
   { title: "Deux mises en page, quatre styles", text: "Photos en vedette façon appli, ou carte gastronomique aux prix alignés." },
   { title: "Toutes les devises", text: "Euro, franc CFA, dirham, dollar… avec le bon format de prix." },
 ]
@@ -296,11 +297,11 @@ function RestaurantMenus() {
               Restaurants, cafés et hôtels
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Votre carte digitale, prête en 10 minutes.
+              Votre carte digitale, et vos commandes en ligne.
             </h2>
             <p className="mt-4 text-pretty text-muted-foreground">
-              Un QR code sur chaque table ouvre une carte soignée, à votre image. Ajoutez vos plats et vos photos, et
-              mettez la carte à jour quand vous voulez : le QR code imprimé ne change jamais.
+              Un QR code sur chaque table, sur vos flyers ou vos sacs ouvre une carte digne d&apos;une app de livraison. Vos clients
+              commandent, vous recevez la commande sur WhatsApp et la suivez jusqu&apos;à la livraison. Sans commission.
             </p>
           </Reveal>
           <div className="mt-10 grid gap-5 sm:grid-cols-2">
@@ -514,6 +515,10 @@ const FAQ = [
   {
     q: "Comment fonctionne le menu digital pour restaurant ?",
     a: "Composez votre carte (catégories, plats, prix, photos, allergènes) puis imprimez le QR code sur vos tables. Vos clients ouvrent la carte sans application. Chaque modification, comme un prix, un nouveau plat ou un plat épuisé, est visible immédiatement, sans réimprimer.",
+  },
+  {
+    q: "Comment mes clients commandent-ils ?",
+    a: "Ils composent leur panier depuis votre menu (tailles, sauces, suppléments), choisissent livraison, à emporter ou sur place, puis la commande vous est envoyée sur WhatsApp. Elle apparaît aussi dans votre tableau de bord, où vous suivez sa préparation ; le client suit son statut en direct. Le paiement se fait à la livraison ou au comptoir, sans commission.",
   },
   {
     q: "Ai-je besoin d'un compte ?",

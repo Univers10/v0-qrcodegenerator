@@ -35,7 +35,18 @@ export default function PrivacyPage() {
         </p>
       </section>
       <section>
-        <h2>4. Finalités et base légale</h2>
+        <h2>4. Données des commandes passées depuis un menu</h2>
+        <p>
+          Lorsqu&apos;un client commande depuis le menu d&apos;un établissement, nous enregistrons, pour le compte de cet
+          établissement : son nom, son numéro de téléphone, l&apos;adresse de livraison ou le numéro de table, les
+          produits commandés et ses instructions. Ces données sont accessibles uniquement à l&apos;établissement
+          concerné, qui en est responsable, et servent exclusivement au traitement de la commande. Le message WhatsApp
+          est envoyé par le client lui-même depuis son téléphone. Une empreinte anonyme, renouvelée chaque jour, limite
+          les envois abusifs.
+        </p>
+      </section>
+      <section>
+        <h2>5. Finalités et base légale</h2>
         <ul>
           <li>Fournir le service (exécution du contrat).</li>
           <li>Produire des statistiques agrégées pour le propriétaire du QR code (intérêt légitime).</li>
@@ -43,14 +54,14 @@ export default function PrivacyPage() {
         </ul>
       </section>
       <section>
-        <h2>5. Conservation</h2>
+        <h2>6. Conservation</h2>
         <p>
           Les données sont conservées tant que le compte est actif. La suppression d&apos;un QR code efface ses
           statistiques ; la suppression du compte efface l&apos;ensemble des données associées.
         </p>
       </section>
       <section>
-        <h2>6. Vos droits</h2>
+        <h2>7. Vos droits</h2>
         <p>
           Vous disposez d&apos;un droit d&apos;accès, de rectification, d&apos;effacement, de portabilité (export CSV des
           scans) et d&apos;opposition. La suppression du compte est disponible à tout moment depuis les paramètres. Vous
@@ -58,7 +69,7 @@ export default function PrivacyPage() {
         </p>
       </section>
       <section>
-        <h2>7. Cookies</h2>
+        <h2>8. Cookies</h2>
         <p>
           QR Creator n&apos;utilise que des cookies strictement nécessaires (session de connexion, préférences
           d&apos;affichage). Aucun cookie de mesure d&apos;audience tiers n&apos;est utilisé.

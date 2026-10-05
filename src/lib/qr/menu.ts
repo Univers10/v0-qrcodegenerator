@@ -82,6 +82,7 @@ export function convertPrice(value: number, from: CurrencyCode, to: CurrencyCode
  * - « carte » : typographie raffinée et prix alignés, comme une carte imprimée haut de gamme
  */
 export const MENU_THEMES = [
+  { value: "delivery", label: "Fast-food", hint: "Commande & livraison", layout: "delivery", background: "#f4f4f5", foreground: "#111111" },
   { value: "modern", label: "Moderne", hint: "Photos en vedette", layout: "app", background: "#f7f7f5", foreground: "#18181b" },
   { value: "classic", label: "Classique", hint: "Carte gastronomique", layout: "carte", background: "#fdfcfa", foreground: "#1c1917" },
   { value: "bistro", label: "Bistrot", hint: "Papier crème, chaleureux", layout: "carte", background: "#f4ecdf", foreground: "#2b2118" },
@@ -115,6 +116,26 @@ export const menuVariantSchema = z.object({
   price: z.preprocess(toNumber, z.number("Prix invalide").min(0, "Prix invalide").max(100_000_000)),
 })
 
+/** Groupe d'options d'un produit : sauce au choix, suppléments payants, cuisson… */
+export const menuOptionGroupSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1, "Nom du groupe requis").max(40),
+  /** Choix obligatoire (au moins un) */
+  required: z.boolean().default(false),
+  /** Nombre maximal de choix (1 = choix unique) */
+  max: z.number().int().min(1).max(10).default(1),
+  choices: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        label: z.string().trim().min(1, "Libellé requis").max(40),
+        price: z.preprocess(toNumber, z.number("Prix invalide").min(0).max(100_000_000)).default(0),
+      }),
+    )
+    .min(1, "Ajoutez au moins un choix")
+    .max(12),
+})
+
 export const menuItemSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().trim().min(1, "Nom du plat requis").max(80),
@@ -122,6 +143,8 @@ export const menuItemSchema = z.object({
   price,
   /** Déclinaisons de prix : verre / bouteille, tailles, formules… */
   variants: z.array(menuVariantSchema).max(5).default([]),
+  /** Options et suppléments (commande en ligne) */
+  options: z.array(menuOptionGroupSchema).max(6).default([]),
   image: imageUrl,
   tags: z.array(z.enum(MENU_TAGS.map((t) => t.value) as [MenuTag, ...MenuTag[]])).max(8).default([]),
   available: z.boolean().default(true),
@@ -152,7 +175,26 @@ export const menuSchema = z.object({
   theme: z.enum(MENU_THEMES.map((t) => t.value) as [MenuTheme, ...MenuTheme[]]).default("modern"),
   accent: z.string().regex(/^#[\da-f]{6}$/i, "Couleur invalide").default("#b45309"),
   note: text(300),
+  /** Commande en ligne : panier, envoi WhatsApp et suivi dans le tableau de bord */
+  ordering: z
+    .object({
+      enabled: z.boolean().default(false),
+      whatsapp: z.string().trim().max(24).default(""),
+      delivery: z.boolean().default(true),
+      pickup: z.boolean().default(true),
+      dineIn: z.boolean().default(false),
+      deliveryFee: price.default(null),
+      minOrder: price.default(null),
+      prepTime: text(30),
+    })
+    .default({ enabled: false, whatsapp: "", delivery: true, pickup: true, dineIn: false, deliveryFee: null, minOrder: null, prepTime: "" }),
   sections: z.array(menuSectionSchema).min(1, "Ajoutez au moins une catégorie").max(30),
+}).superRefine((m, ctx) => {
+  if (!m.ordering.enabled) return
+  if (!/^\+?[\d\s().-]{8,24}$/.test(m.ordering.whatsapp))
+    ctx.addIssue({ code: "custom", path: ["ordering", "whatsapp"], message: "Numéro WhatsApp au format international requis (ex. +225…)" })
+  if (!m.ordering.delivery && !m.ordering.pickup && !m.ordering.dineIn)
+    ctx.addIssue({ code: "custom", path: ["ordering", "delivery"], message: "Activez au moins un mode de commande" })
 })
 
 export type MenuData = z.output<typeof menuSchema>
@@ -169,7 +211,33 @@ export function newId() {
 }
 
 export function emptyItem(): Record<string, unknown> {
-  return { id: newId(), name: "", description: "", price: "", variants: [], image: null, tags: [], available: true }
+  return { id: newId(), name: "", description: "", price: "", variants: [], options: [], image: null, tags: [], available: true }
+}
+
+export const ORDER_MODES = [
+  { value: "delivery", label: "Livraison", short: "Livraison" },
+  { value: "pickup", label: "À emporter", short: "À emporter" },
+  { value: "dine_in", label: "Sur place", short: "Sur place" },
+] as const
+
+export type OrderMode = (typeof ORDER_MODES)[number]["value"]
+
+export function enabledModes(ordering: MenuData["ordering"]): OrderMode[] {
+  return [ordering.delivery && "delivery", ordering.pickup && "pickup", ordering.dineIn && "dine_in"].filter(Boolean) as OrderMode[]
+}
+
+/** Prix unitaire d'une ligne de commande : déclinaison (ou prix de base) + suppléments choisis. */
+export function unitPrice(item: Pick<MenuItem, "price" | "variants" | "options">, variantId: string | null, choiceIds: string[]) {
+  const variant = variantId ? item.variants.find((v) => v.id === variantId) : null
+  const base = variant ? variant.price : item.price
+  if (base === null || base === undefined) return null
+  const extras = item.options.flatMap((g) => g.choices).filter((c) => choiceIds.includes(c.id))
+  return base + extras.reduce((sum, c) => sum + c.price, 0)
+}
+
+/** Un produit peut-il être commandé (prix défini, disponible) ? */
+export function isOrderable(item: Pick<MenuItem, "price" | "variants" | "available">) {
+  return item.available && (item.price !== null || item.variants.length > 0)
 }
 
 export function emptySection(name = ""): Record<string, unknown> {
@@ -291,6 +359,183 @@ export function sampleMenu(makeId: () => string = newId, currency: CurrencyCode 
   }
 }
 
+/**
+ * Menu d'exemple « fast-food » avec commande en ligne : combos, burgers personnalisables,
+ * tacos, poulet, accompagnements (dont l'alloco), boissons locales et desserts.
+ */
+export function fastFoodSample(makeId: () => string = newId, currency: CurrencyCode = DEFAULT_CURRENCY): Record<string, unknown> {
+  const p = (cfa: number) =>
+    currency === "XOF" || currency === "XAF" ? cfa : canConvert("XOF", currency) ? convertPrice(cfa, "XOF", currency) : Math.round(cfa / 600)
+  const choices = (list: [string, number][]) => list.map(([label, price]) => ({ id: makeId(), label, price: p(price) }))
+  const group = (name: string, list: [string, number][], { required = false, max = 1 } = {}) => ({
+    id: makeId(),
+    name,
+    required,
+    max,
+    choices: choices(list),
+  })
+  const sauce = () => group("Sauce au choix", [["Ketchup", 0], ["Mayonnaise", 0], ["Barbecue", 0], ["Algérienne", 0], ["Samouraï", 0]], { required: true })
+  const extras = () => group("Suppléments", [["Cheddar", 300], ["Bacon de dinde", 500], ["Œuf", 300], ["Oignons frits", 300]], { max: 4 })
+  const drink = () => group("Boisson du menu", [["Soda 33 cl", 0], ["Bissap maison", 0], ["Jus de gingembre", 0], ["Eau 50 cl", 0]], { required: true })
+  const item = (
+    name: string,
+    description: string,
+    price: number | null,
+    image: string,
+    { tags = [] as MenuTag[], variants = [] as [string, number][], options = [] as unknown[] } = {},
+  ) => ({
+    id: makeId(),
+    name,
+    description,
+    price: price === null ? null : p(price),
+    variants: variants.map(([label, v]) => ({ id: makeId(), label, price: p(v) })),
+    options,
+    image: `/menu-demo/${image}.webp`,
+    tags,
+    available: true,
+  })
+
+  return {
+    ...defaultMenu(),
+    restaurant: {
+      name: "Smash & Co",
+      tagline: "Burgers smashés, poulet croustillant et tacos généreux",
+      cuisine: "Burgers · Tacos · Poulet",
+      logo: null,
+      cover: "/menu-demo/ff-cover.webp",
+      phone: "+225 07 00 00 00 00",
+      address: "Boulevard Latrille, Cocody, Abidjan",
+      hours: "Tous les jours · 11 h – 23 h",
+      website: "",
+      wifiSsid: "",
+      wifiPassword: "",
+    },
+    currency,
+    theme: "delivery",
+    accent: "#e11d48",
+    note: "Photos non contractuelles. Informations allergènes disponibles sur demande.",
+    ordering: {
+      enabled: true,
+      whatsapp: "+225 07 00 00 00 00",
+      delivery: true,
+      pickup: true,
+      dineIn: true,
+      deliveryFee: p(1000),
+      minOrder: p(3000),
+      prepTime: "20 – 30 min",
+    },
+    sections: [
+      {
+        id: makeId(),
+        name: "Menus",
+        description: "Sandwich + frites + boisson",
+        items: [
+          item("Menu Smash Classic", "Smash burger, frites moyennes et boisson au choix", 6500, "ff-menu", {
+            tags: ["popular"],
+            options: [sauce(), drink(), extras()],
+          }),
+          item("Menu Chicken Crispy", "Burger poulet croustillant, frites et boisson", 6500, "ff-menu-chicken", {
+            options: [sauce(), drink()],
+          }),
+          item("Menu Tacos", "Tacos M, frites et boisson au choix", 6000, "ff-tacos", { options: [drink()] }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Burgers",
+        description: "",
+        items: [
+          item("Smash Classic", "Double steak smashé, cheddar fondu, oignons, pickles, sauce maison", 4500, "ff-classic", {
+            tags: ["popular"],
+            options: [sauce(), extras()],
+          }),
+          item("Double Cheese", "Deux steaks, double cheddar, oignons caramélisés", 5500, "ff-double", { options: [sauce(), extras()] }),
+          item("Chicken Crispy", "Filet de poulet pané, salade, sauce piquante", 4500, "ff-chicken", {
+            tags: ["spicy", "halal"],
+            options: [sauce(), extras()],
+          }),
+          item("Veggie", "Galette de légumes, cheddar, tomate, salade", 4000, "ff-veggie", { tags: ["vegetarian", "new"], options: [sauce()] }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Tacos & wraps",
+        description: "",
+        items: [
+          item("Tacos poulet", "Poulet mariné, frites, sauce fromagère gratinée", null, "ff-tacos", {
+            tags: ["popular", "halal"],
+            variants: [
+              ["M", 3500],
+              ["L", 5000],
+              ["XL", 6500],
+            ],
+            options: [group("Viande", [["Poulet", 0], ["Viande hachée", 0], ["Cordon bleu", 500]], { required: true }), sauce()],
+          }),
+          item("Wrap poulet", "Poulet grillé, chou rouge, coriandre, sauce yaourt", 3500, "ff-wrap", { options: [sauce()] }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Poulet",
+        description: "",
+        items: [
+          item("Tenders", "Aiguillettes de poulet panées, sauce au choix", null, "ff-tenders", {
+            variants: [
+              ["5 pièces", 3500],
+              ["9 pièces", 5500],
+            ],
+            options: [sauce()],
+          }),
+          item("Ailes épicées", "Ailes de poulet marinées, sauce buffalo", null, "ff-wings", {
+            tags: ["spicy"],
+            variants: [
+              ["6 pièces", 3500],
+              ["12 pièces", 6000],
+            ],
+          }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Accompagnements",
+        description: "",
+        items: [
+          item("Frites maison", "Pommes de terre fraîches, sel fin", null, "ff-fries", {
+            tags: ["vegan"],
+            variants: [
+              ["Moyenne", 1000],
+              ["Grande", 1500],
+            ],
+          }),
+          item("Alloco", "Banane plantain frite, piment à part", 1000, "ff-alloco", { tags: ["vegan", "popular"] }),
+          item("Onion rings", "Rondelles d'oignon panées (8 pièces)", 1500, "ff-onion", { tags: ["vegetarian"] }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Boissons",
+        description: "",
+        items: [
+          item("Bissap maison", "Infusion d'hibiscus, menthe, bien frais", 1000, "ff-bissap", { tags: ["vegan"] }),
+          item("Soda", "Canette 33 cl", 800, "ff-soda"),
+          item("Milkshake", "Vanille, chocolat ou fraise", 2500, "ff-milkshake", {
+            options: [group("Parfum", [["Vanille", 0], ["Chocolat", 0], ["Fraise", 0]], { required: true })],
+          }),
+        ],
+      },
+      {
+        id: makeId(),
+        name: "Desserts",
+        description: "",
+        items: [
+          item("Sundae", "Glace vanille, coulis caramel ou chocolat", 1500, "ff-sundae", { tags: ["vegetarian"] }),
+          item("Cookie géant", "Pépites de chocolat, cuit le jour même", 1000, "ff-cookie", { tags: ["vegetarian"] }),
+        ],
+      },
+    ],
+  }
+}
+
 const formatters = new Map<string, Intl.NumberFormat>()
 
 export function formatPrice(value: number | null, currency: string) {
@@ -358,6 +603,19 @@ export function toViewMenu(raw: unknown): MenuData {
     theme,
     accent: typeof r.accent === "string" && /^#[\da-f]{6}$/i.test(r.accent) ? r.accent : "#b45309",
     note: str(r.note),
+    ordering: (() => {
+      const o = (r.ordering ?? {}) as Record<string, unknown>
+      return {
+        enabled: o.enabled === true,
+        whatsapp: str(o.whatsapp),
+        delivery: o.delivery !== false,
+        pickup: o.pickup !== false,
+        dineIn: o.dineIn === true,
+        deliveryFee: num(o.deliveryFee),
+        minOrder: num(o.minOrder),
+        prepTime: str(o.prepTime),
+      }
+    })(),
     sections: sections
       .map((s, si) => ({
         id: str(s.id) || `s${si}`,
@@ -372,6 +630,17 @@ export function toViewMenu(raw: unknown): MenuData {
             variants: (Array.isArray(i.variants) ? (i.variants as Record<string, unknown>[]) : [])
               .map((v, vi) => ({ id: str(v.id) || `v${vi}`, label: str(v.label), price: num(v.price) }))
               .filter((v): v is { id: string; label: string; price: number } => Boolean(v.label) && v.price !== null),
+            options: (Array.isArray(i.options) ? (i.options as Record<string, unknown>[]) : [])
+              .map((g, gi) => ({
+                id: str(g.id) || `g${gi}`,
+                name: str(g.name),
+                required: g.required === true,
+                max: Math.min(10, Math.max(1, Math.round(Number(g.max) || 1))),
+                choices: (Array.isArray(g.choices) ? (g.choices as Record<string, unknown>[]) : [])
+                  .map((c, ci) => ({ id: str(c.id) || `c${ci}`, label: str(c.label), price: num(c.price) ?? 0 }))
+                  .filter((c) => c.label),
+              }))
+              .filter((g) => g.name && g.choices.length > 0),
             image: image(i.image),
             tags: (Array.isArray(i.tags) ? i.tags : []).filter((t): t is MenuTag => TAG_VALUES.has(String(t))),
             available: i.available !== false,

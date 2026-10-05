@@ -9,6 +9,7 @@ import {
   Moon,
   Plus,
   QrCode,
+  ReceiptText,
   Settings,
   Sun,
 } from "lucide-react"
@@ -49,7 +50,7 @@ import { formatNumber } from "@/lib/utils"
 
 type Props = {
   user: { name: string; email: string }
-  stats: { codes: number; scans30d: number }
+  stats: { codes: number; scans30d: number; pendingOrders: number }
 }
 
 export function initials(name: string) {
@@ -72,6 +73,7 @@ export function AppSidebar({ user, stats }: Props) {
   const nav = [
     { href: "/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
     { href: "/dashboard/codes", label: "Mes QR codes", icon: QrCode, badge: stats.codes },
+    { href: "/dashboard/orders", label: "Commandes", icon: ReceiptText, badge: stats.pendingOrders, alert: stats.pendingOrders > 0 },
     { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
   ]
 
@@ -127,7 +129,11 @@ export function AppSidebar({ user, stats }: Props) {
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
-                  {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
+                  {item.badge ? (
+                    <SidebarMenuBadge className={"alert" in item && item.alert ? "rounded-full bg-rose-500 px-1.5 text-white peer-hover/menu-button:text-white" : undefined}>
+                      {item.badge}
+                    </SidebarMenuBadge>
+                  ) : null}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

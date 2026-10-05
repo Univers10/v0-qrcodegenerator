@@ -15,7 +15,7 @@ import { drizzle } from "drizzle-orm/libsql"
 import { databaseConfig } from "../src/lib/db/env"
 import * as schema from "../src/lib/db/schema"
 import { applyTemplate, DEFAULT_DESIGN, DESIGN_TEMPLATES, type QrDesign } from "../src/lib/qr/design"
-import { menuSchema, sampleMenu } from "../src/lib/qr/menu"
+import { fastFoodSample, menuSchema, sampleMenu } from "../src/lib/qr/menu"
 
 const DEMO_EMAIL = "demo@qrcreator.local"
 const DEMO_PASSWORD = "demo-qrcreator-2026"
@@ -53,6 +53,15 @@ const CODES: {
   weight: number
   ageDays: number
 }[] = [
+  {
+    name: "Menu — Smash & Co",
+    type: "menu",
+    data: menuSchema.parse(fastFoodSample()),
+    design: template("candy", { frame: { style: "bottom", text: "COMMANDER ICI", color: "#e11d48", textColor: "#ffffff" } }),
+    isDynamic: true,
+    weight: 7,
+    ageDays: 45,
+  },
   {
     name: "Menu — Le Bistrot des Halles",
     type: "menu",
@@ -258,6 +267,71 @@ async function main() {
     for (let i = 0; i < scans.length; i += 400) await db.insert(schema.scan).values(scans.slice(i, i + 400))
     total += scans.length
     console.log(`  • ${code.name} — ${scans.length} scans`)
+  }
+
+  // Commandes de démonstration pour le menu fast-food (tableau de bord « Commandes »)
+  const ff = await db.query.qrCode.findFirst({ where: eq(schema.qrCode.name, "Menu — Smash & Co") })
+  let orderCount = 0
+  if (ff) {
+    const menu = menuSchema.parse(ff.data)
+    const products = menu.sections.flatMap((sec) => sec.items).filter((i) => i.price !== null || i.variants.length)
+    const customers = [
+      ["Awa Koné", "+225 07 48 12 33 90", "Cocody Angré, 8e tranche, près de la pharmacie"],
+      ["Moussa Traoré", "+225 05 66 21 09 14", "Riviera Palmeraie, rue des jardins"],
+      ["Fatou Diallo", "+225 01 72 44 18 03", "Marcory Zone 4, rue du canal"],
+      ["Yao Kouassi", "+225 07 10 93 55 61", "Plateau, avenue Chardy"],
+      ["Aminata Sylla", "+225 05 39 80 27 44", "Yopougon Maroc, carrefour Siporex"],
+      ["Jean-Marc Aka", "+225 07 21 64 70 08", "Deux-Plateaux Vallon"],
+    ]
+    const modes = ["delivery", "delivery", "pickup", "dine_in"] as const
+    const plans: { hoursAgo: number; status: (typeof schema.customerOrder.$inferInsert)["status"] }[] = [
+      { hoursAgo: 0.05, status: "new" },
+      { hoursAgo: 0.15, status: "new" },
+      { hoursAgo: 0.3, status: "preparing" },
+      { hoursAgo: 0.5, status: "preparing" },
+      { hoursAgo: 0.7, status: "delivering" },
+      { hoursAgo: 0.9, status: "ready" },
+      ...Array.from({ length: 22 }, (_, i) => ({ hoursAgo: 1.2 + i * 2.7, status: (i % 9 === 4 ? "cancelled" : "completed") as "completed" | "cancelled" })),
+    ]
+    for (const [n, plan] of plans.entries()) {
+      const mode = plan.status === "delivering" ? "delivery" : plan.status === "ready" ? "pickup" : modes[Math.floor(rand() * modes.length)]
+      const [name, phone, address] = customers[Math.floor(rand() * customers.length)]
+      const lines = Array.from({ length: 1 + Math.floor(rand() * 3) }, () => {
+        const item = products[Math.floor(rand() * products.length)]
+        const variant = item.variants.length ? item.variants[Math.floor(rand() * item.variants.length)] : null
+        const options = item.options.flatMap((g) => (g.required || rand() < 0.3 ? [g.choices[Math.floor(rand() * g.choices.length)]] : []))
+        const unit = (variant ? variant.price : item.price!) + options.reduce((sum, c) => sum + c.price, 0)
+        const quantity = 1 + Math.floor(rand() * 2)
+        return { itemId: item.id, name: item.name, variant: variant?.label ?? null, options: options.map((c) => c.label), quantity, unitPrice: unit, total: unit * quantity }
+      })
+      const subtotal = lines.reduce((sum, l) => sum + l.total, 0)
+      const deliveryFee = mode === "delivery" ? (menu.ordering.deliveryFee ?? 0) : 0
+      const at = new Date(Date.now() - plan.hoursAgo * 3_600_000)
+      await db.insert(schema.customerOrder).values({
+        id: randomUUID(),
+        qrCodeId: ff.id,
+        userId,
+        number: plans.length - n,
+        token: randomUUID().replace(/-/g, "").slice(0, 20),
+        status: plan.status,
+        mode,
+        customerName: name,
+        customerPhone: phone,
+        address: mode === "delivery" ? address : null,
+        tableNumber: mode === "dine_in" ? String(1 + Math.floor(rand() * 15)) : null,
+        note: rand() < 0.25 ? "Sans oignons, sauce à part svp" : null,
+        items: lines,
+        subtotal,
+        deliveryFee,
+        total: subtotal + deliveryFee,
+        currency: menu.currency,
+        senderHash: "seed",
+        createdAt: at,
+        updatedAt: at,
+      })
+      orderCount++
+    }
+    console.log(`  • ${orderCount} commandes de démonstration`)
   }
 
   console.log(`\n✓ Démo prête : ${CODES.length} QR codes, ${total} scans`)

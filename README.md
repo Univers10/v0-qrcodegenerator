@@ -17,7 +17,8 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
 - **Générateur public sans compte** (QR statiques). Le brouillon est conservé si l'on crée un compte ensuite.
 
 ### Menu de restaurant
-- **Deux mises en page, quatre styles** :
+- **Trois mises en page, cinq styles** :
+  - **Fast-food** : appli de livraison avec commande en ligne (voir ci-dessous) ;
   - **Moderne** : grandes photos, carrousel « Coups de cœur », façon appli de livraison ;
   - **Classique, Bistrot, Élégant** : carte gastronomique imprimée, avec typographie serif, prix alignés en pointillés et couverture en arche.
 - **Éditeur de carte** :
@@ -34,12 +35,29 @@ QR Creator, par UNIVERS10, est une plateforme pour créer des **QR codes dynamiq
   - horaires, appel, itinéraire, Wi-Fi ;
   - légende des pictogrammes.
 - **Devises** : 16, regroupées par région. Le franc CFA (XOF) est la devise par défaut, sans décimales. Le sélecteur est en tête de l'onglet Carte. Entre XOF, XAF et EUR, les prix peuvent être convertis automatiquement à la parité fixe (1 € = 655,957 F CFA).
-- **Menu d'exemple** : 12 plats avec de vraies photos libres de droits (licence Unsplash), servies depuis `public/menu-demo/` (voir `CREDITS.md`).
+- **Menus d'exemple** (« Fast-food » et « Bistrot ») avec de vraies photos libres de droits (licence Unsplash), servies depuis `public/menu-demo/` (voir `CREDITS.md`).
 - **Photos des restaurateurs** :
   - recompressées en WEBP dans le navigateur, stockées dans la table `asset` ;
   - servies par `/api/assets/{id}` avec un cache CDN d'un an ;
   - type vérifié par signature binaire, SVG refusé ;
   - quotas par compte et nettoyage automatique des images orphelines.
+
+### Commande en ligne (style « Fast-food »)
+- **Côté client**, une interface façon appli de livraison :
+  - grille de produits avec bouton « + », « Les plus commandés » ;
+  - fiche produit avec tailles, options et suppléments (obligatoires ou facultatifs, choix unique ou multiple) et quantité ;
+  - panier flottant conservé dans le navigateur ;
+  - livraison, à emporter ou sur place, avec frais de livraison, minimum de commande et délai affichés.
+- **Envoi** : la commande est enregistrée, puis un message WhatsApp formaté s'ouvre vers le numéro du restaurant. Le client reçoit un lien de suivi `/o/{jeton}`, qui se met à jour automatiquement.
+- **Sécurité** :
+  - le serveur recalcule chaque prix à partir de la carte enregistrée et vérifie les options obligatoires, la disponibilité et le minimum ;
+  - numérotation séquentielle par menu ;
+  - limite de 5 commandes par expéditeur et par tranche de 10 minutes.
+- **Tableau de bord « Commandes »** :
+  - colonnes Nouvelles, En préparation, Prêtes / en livraison, Terminées ;
+  - actualisation toutes les 10 secondes, alerte sonore et compteur dans l'onglet ;
+  - chiffre d'affaires, panier moyen ;
+  - appel ou WhatsApp vers le client, annulation.
 
 ### QR codes dynamiques
 - Lien court `/r/{code}` avec une **redirection 302 instantanée**. Le scan est enregistré après l'envoi de la réponse (`after()`).

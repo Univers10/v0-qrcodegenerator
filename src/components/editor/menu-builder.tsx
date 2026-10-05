@@ -27,6 +27,7 @@ import {
   Loader2,
   Palette,
   Plus,
+  ShoppingBag,
   Store,
   Trash2,
   WandSparkles,
@@ -59,6 +60,7 @@ import {
   convertPrice,
   currencySymbol,
   isCurrency,
+  fastFoodSample,
   sampleMenu,
   type CurrencyCode,
   type MenuTag,
@@ -91,6 +93,7 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
   const restaurant = (values.restaurant ?? {}) as Record<string, unknown>
   const sections = (Array.isArray(values.sections) ? values.sections : []) as Section[]
   const currency: CurrencyCode = isCurrency(values.currency) ? values.currency : DEFAULT_CURRENCY
+  const ordering = { ...DEFAULT_ORDERING, ...((values.ordering ?? {}) as Record<string, unknown>) }
 
   const changeCurrency = (next: CurrencyCode) => {
     if (next === currency) return
@@ -189,36 +192,51 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
           </span>
           <p className="flex-1 text-sm">
             <span className="font-medium">Démarrez avec une carte complète</span>
-            <span className="block text-muted-foreground">12 plats en 4 catégories, avec photos, prix et étiquettes, à adapter.</span>
+            <span className="block text-muted-foreground">Photos, prix, options et étiquettes déjà remplis : il ne reste qu&apos;à adapter.</span>
           </p>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              const sample = sampleMenu(undefined, currency)
-              onChange(sample)
-              const first = (sample.sections as Section[])[0]
-              setSelectedId(str(first.id))
-              setExpanded(null)
-            }}
-          >
-            Charger l&apos;exemple
-          </Button>
+          <div className="flex gap-2">
+            {(
+              [
+                ["Fast-food", () => fastFoodSample(undefined, currency)],
+                ["Bistrot", () => sampleMenu(undefined, currency)],
+              ] as const
+            ).map(([label, build]) => (
+              <Button
+                key={label}
+                type="button"
+                size="sm"
+                variant={label === "Fast-food" ? "default" : "outline"}
+                onClick={() => {
+                  const sample = build()
+                  onChange(sample)
+                  const first = (sample.sections as Section[])[0]
+                  setSelectedId(str(first.id))
+                  setExpanded(null)
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
 
       <Tabs defaultValue="carte" className="gap-5">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="carte" className="gap-1.5">
-            <LayoutList className="size-4" /> Carte
+            <LayoutList className="size-4" /> <span className="hidden sm:inline">Carte</span>
             {Object.keys(errors).some((k) => k.startsWith("sections")) && <ErrorDot />}
           </TabsTrigger>
           <TabsTrigger value="etablissement" className="gap-1.5">
-            <Store className="size-4" /> Établissement
+            <Store className="size-4" /> <span className="hidden sm:inline">Établissement</span>
             {establishmentError && <ErrorDot />}
           </TabsTrigger>
+          <TabsTrigger value="commande" className="gap-1.5">
+            <ShoppingBag className="size-4" /> <span className="hidden sm:inline">Commande</span>
+            {Object.keys(errors).some((k) => k.startsWith("ordering")) && <ErrorDot />}
+          </TabsTrigger>
           <TabsTrigger value="apparence" className="gap-1.5">
-            <Palette className="size-4" /> Apparence
+            <Palette className="size-4" /> <span className="hidden sm:inline">Apparence</span>
           </TabsTrigger>
         </TabsList>
 
@@ -359,6 +377,7 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
                           name: err(`sections.${selectedIndex}.items.${j}.name`),
                           price: err(`sections.${selectedIndex}.items.${j}.price`),
                           variants: Object.entries(errors).find(([k]) => k.startsWith(`sections.${selectedIndex}.items.${j}.variants`))?.[1],
+                          options: Object.entries(errors).find(([k]) => k.startsWith(`sections.${selectedIndex}.items.${j}.options`))?.[1],
                         }}
                         canUpload={canUpload}
                       />
@@ -438,6 +457,17 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
           </div>
         </TabsContent>
 
+        {/* ---------------------------------------------------------------- Commande */}
+        <TabsContent value="commande" className="space-y-5">
+          <OrderingSettings
+            value={ordering}
+            currency={currency}
+            errors={{ whatsapp: err("ordering.whatsapp"), modes: err("ordering.delivery") }}
+            onChange={(patch) => set({ ordering: { ...ordering, ...patch } })}
+            onSuggestTheme={(values.theme ?? "modern") !== "delivery" ? () => set({ theme: "delivery" }) : undefined}
+          />
+        </TabsContent>
+
         {/* ---------------------------------------------------------------- Apparence */}
         <TabsContent value="apparence" className="space-y-6">
           <div className="space-y-2">
@@ -485,6 +515,198 @@ export function MenuBuilder({ values, errors, onChange, canUpload }: Props) {
 }
 
 /* ------------------------------------------------------------------ */
+
+const DEFAULT_ORDERING = { enabled: false, whatsapp: "", delivery: true, pickup: true, dineIn: false, deliveryFee: "", minOrder: "", prepTime: "" }
+type OptionGroup = { id: string; name: string; required: boolean; max: number; choices: { id: string; label: string; price: unknown }[] }
+
+function OrderingSettings({
+  value,
+  currency,
+  errors,
+  onChange,
+  onSuggestTheme,
+}: {
+  value: Record<string, unknown>
+  currency: CurrencyCode
+  errors: { whatsapp?: string; modes?: string }
+  onChange: (patch: Record<string, unknown>) => void
+  onSuggestTheme?: () => void
+}) {
+  const enabled = value.enabled === true
+  const symbol = currencySymbol(currency)
+  return (
+    <div className="space-y-5">
+      <label className="flex items-start justify-between gap-4 rounded-xl border p-4">
+        <span>
+          <span className="block text-sm font-semibold">Commande en ligne</span>
+          <span className="text-xs text-muted-foreground">
+            Panier, choix des options, puis envoi de la commande sur votre WhatsApp. Chaque commande apparaît aussi dans « Commandes ».
+          </span>
+        </span>
+        <Switch checked={enabled} onCheckedChange={(on) => onChange({ enabled: on })} />
+      </label>
+
+      {enabled && (
+        <>
+          {onSuggestTheme && (
+            <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center">
+              <p className="flex-1">Le style <strong>Fast-food</strong> est conçu pour la commande : grille de produits, bouton « + » et panier flottant.</p>
+              <Button type="button" size="sm" onClick={onSuggestTheme}>
+                Utiliser ce style
+              </Button>
+            </div>
+          )}
+          <Field label="Numéro WhatsApp qui reçoit les commandes" error={errors.whatsapp} hint="Format international, ex. +225 07 00 00 00 00">
+            <Input type="tel" value={str(value.whatsapp)} onChange={(e) => onChange({ whatsapp: e.target.value })} placeholder="+225 07 00 00 00 00" maxLength={24} />
+          </Field>
+          <div className="space-y-2">
+            <span className="text-sm font-medium">Modes proposés</span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  ["delivery", "Livraison"],
+                  ["pickup", "À emporter"],
+                  ["dineIn", "Sur place"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm">
+                  {label}
+                  <Switch checked={value[key] !== false && (key !== "dineIn" || value[key] === true)} onCheckedChange={(on) => onChange({ [key]: on })} />
+                </label>
+              ))}
+            </div>
+            {errors.modes && <p className="text-xs text-destructive">{errors.modes}</p>}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Frais de livraison" hint="Vide ou 0 : offerte">
+              <div className="relative">
+                <Input value={str(value.deliveryFee)} onChange={(e) => onChange({ deliveryFee: e.target.value })} inputMode="decimal" placeholder="1 000" className="pr-14 text-right tabular-nums" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">{symbol}</span>
+              </div>
+            </Field>
+            <Field label="Minimum de commande" hint="Facultatif">
+              <div className="relative">
+                <Input value={str(value.minOrder)} onChange={(e) => onChange({ minOrder: e.target.value })} inputMode="decimal" placeholder="3 000" className="pr-14 text-right tabular-nums" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">{symbol}</span>
+              </div>
+            </Field>
+            <Field label="Délai de préparation" hint="Affiché aux clients">
+              <Input value={str(value.prepTime)} onChange={(e) => onChange({ prepTime: e.target.value })} placeholder="20 – 30 min" maxLength={30} />
+            </Field>
+          </div>
+          <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            Le paiement se fait à la livraison ou au comptoir. Les prix de chaque commande sont recalculés par le serveur à partir de votre carte.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function OptionGroupsEditor({
+  groups,
+  currency,
+  onChange,
+  error,
+}: {
+  groups: OptionGroup[]
+  currency: string
+  onChange: (groups: OptionGroup[]) => void
+  error?: string
+}) {
+  const symbol = currencySymbol(currency)
+  const update = (i: number, patch: Partial<OptionGroup>) => onChange(groups.map((g, k) => (k === i ? { ...g, ...patch } : g)))
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Options et suppléments</Label>
+        {groups.length < 6 && (
+          <button
+            type="button"
+            onClick={() => onChange([...groups, { id: newId(), name: "", required: false, max: 1, choices: [{ id: newId(), label: "", price: "" }] }])}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            + Groupe d&apos;options
+          </button>
+        )}
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sauce au choix, suppléments payants, cuisson… (pour la commande en ligne)</p>
+      ) : (
+        groups.map((g, i) => (
+          <div key={g.id} className="space-y-2 rounded-lg border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={str(g.name)} onChange={(e) => update(i, { name: e.target.value })} placeholder="Ex. Sauce au choix" maxLength={40} className="h-8 min-w-40 flex-1 text-sm" aria-label="Nom du groupe" />
+              <Select value={String(g.max ?? 1)} onValueChange={(v) => update(i, { max: Number(v) })}>
+                <SelectTrigger className="h-8 w-36 text-xs" aria-label="Nombre de choix">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Choix unique</SelectItem>
+                  {[2, 3, 4, 5, 10].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      Jusqu&apos;à {n} choix
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <label className="flex items-center gap-1.5 text-xs">
+                <Switch checked={g.required === true} onCheckedChange={(required) => update(i, { required })} /> Obligatoire
+              </label>
+              <Button type="button" variant="ghost" size="icon-sm" className="ml-auto size-8" onClick={() => onChange(groups.filter((_, k) => k !== i))} aria-label="Supprimer le groupe">
+                <Trash2 />
+              </Button>
+            </div>
+            {g.choices.map((c, ci) => (
+              <div key={c.id} className="flex gap-2">
+                <Input
+                  value={str(c.label)}
+                  onChange={(e) => update(i, { choices: g.choices.map((x, k) => (k === ci ? { ...x, label: e.target.value } : x)) })}
+                  placeholder="Ex. Barbecue"
+                  maxLength={40}
+                  className="h-8 text-sm"
+                  aria-label="Libellé du choix"
+                />
+                <div className="relative w-28 shrink-0">
+                  <Input
+                    value={str(c.price)}
+                    onChange={(e) => update(i, { choices: g.choices.map((x, k) => (k === ci ? { ...x, price: e.target.value } : x)) })}
+                    placeholder="+ 0"
+                    inputMode="decimal"
+                    className="h-8 pr-12 text-right text-sm tabular-nums"
+                    aria-label="Supplément"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[10px] text-muted-foreground">{symbol}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-8 shrink-0"
+                  disabled={g.choices.length <= 1}
+                  onClick={() => update(i, { choices: g.choices.filter((_, k) => k !== ci) })}
+                  aria-label="Retirer le choix"
+                >
+                  <X />
+                </Button>
+              </div>
+            ))}
+            {g.choices.length < 12 && (
+              <button
+                type="button"
+                onClick={() => update(i, { choices: [...g.choices, { id: newId(), label: "", price: "" }] })}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                + Ajouter un choix
+              </button>
+            )}
+          </div>
+        ))
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  )
+}
 
 const currencyName = (code: string) => CURRENCIES.find((c) => c.value === code)?.label ?? code
 const REGIONS = [...new Set(CURRENCIES.map((c) => c.region))]
@@ -581,14 +803,14 @@ function SortableItemRow({
   onChange: (patch: Record<string, unknown>) => void
   onDuplicate: () => void
   onDelete?: () => void
-  errors: { name?: string; price?: string; variants?: string }
+  errors: { name?: string; price?: string; variants?: string; options?: string }
   canUpload: boolean
 }) {
   const id = str(item.id)
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id })
   const tags = (Array.isArray(item.tags) ? item.tags : []) as MenuTag[]
   const variants = (Array.isArray(item.variants) ? item.variants : []) as Variant[]
-  const hasError = Boolean(errors.name || errors.price || errors.variants)
+  const hasError = Boolean(errors.name || errors.price || errors.variants || errors.options)
   const priceLabel = (() => {
     const p = toNum(item.price)
     if (p !== null) return formatPrice(p, currency)
@@ -731,6 +953,13 @@ function SortableItemRow({
               )}
             </div>
 
+            <OptionGroupsEditor
+              groups={(Array.isArray(item.options) ? item.options : []) as OptionGroup[]}
+              currency={currency}
+              onChange={(options) => onChange({ options })}
+              error={errors.options}
+            />
+
             <div className="space-y-1.5">
               <Label>Étiquettes</Label>
               <div className="flex flex-wrap gap-1.5">
@@ -784,6 +1013,25 @@ function SortableItemRow({
 
 function ThemeThumb({ theme, accent }: { theme: (typeof MENU_THEMES)[number]; accent: string }) {
   const fg = theme.foreground
+  if (theme.layout === "delivery") {
+    return (
+      <div className="h-24 p-2" style={{ background: theme.background }}>
+        <div className="h-6 rounded-md" style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 45%, black))` }} />
+        <div className="mt-1 flex gap-1">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-1.5 w-6 rounded-full" style={{ background: i ? "#fff" : fg }} />
+          ))}
+        </div>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          {[0, 1].map((i) => (
+            <div key={i} className="relative h-8 rounded-md bg-white">
+              <span className="absolute right-1 bottom-1 size-2.5 rounded-full" style={{ background: accent }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   if (theme.layout === "app") {
     return (
       <div className="h-24 p-2.5" style={{ background: theme.background }}>

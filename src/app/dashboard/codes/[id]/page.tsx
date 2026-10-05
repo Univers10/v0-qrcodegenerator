@@ -1,4 +1,4 @@
-import { CalendarClock, FileSpreadsheet, Lock, MoreHorizontal, Pause, Pencil, ScanLine, UtensilsCrossed, Zap } from "lucide-react"
+import { CalendarClock, FileSpreadsheet, Lock, MoreHorizontal, Pause, Pencil, ReceiptText, ScanLine, UtensilsCrossed, Zap } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -115,11 +115,18 @@ export default async function CodeDetailPage({ params, searchParams }: Params) {
                 </a>
               )}
               {code.type === "menu" && (
-                <Button asChild variant="outline" size="sm" className="mt-1 w-full">
-                  <a href={`/p/${code.shortCode}`} target="_blank" rel="noopener noreferrer">
-                    <UtensilsCrossed /> Voir la carte en ligne
-                  </a>
-                </Button>
+                <div className="mt-1 grid gap-2">
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <a href={`/p/${code.shortCode}`} target="_blank" rel="noopener noreferrer">
+                      <UtensilsCrossed /> Voir la carte en ligne
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href="/dashboard/orders">
+                      <ReceiptText /> Commandes reçues
+                    </Link>
+                  </Button>
+                </div>
               )}
               {code.isDynamic && (
                 <p className="text-xs text-muted-foreground">

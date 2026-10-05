@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm"
-import { blob, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { blob, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -136,6 +136,58 @@ export const asset = sqliteTable(
   },
   (t) => [index("asset_user_idx").on(t.userId, t.createdAt)],
 )
+
+export type OrderLine = {
+  itemId: string
+  name: string
+  variant: string | null
+  options: string[]
+  quantity: number
+  unitPrice: number
+  total: number
+}
+
+/** Commandes passées depuis un menu (panier + WhatsApp), suivies dans le tableau de bord. */
+export const customerOrder = sqliteTable(
+  "customer_order",
+  {
+    id: text("id").primaryKey(),
+    qrCodeId: text("qr_code_id")
+      .notNull()
+      .references(() => qrCode.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Numéro lisible, séquentiel par menu (#1, #2…) */
+    number: integer("number").notNull(),
+    /** Jeton public de la page de suivi /o/{token} */
+    token: text("token").notNull().unique(),
+    status: text("status", { enum: ["new", "preparing", "ready", "delivering", "completed", "cancelled"] })
+      .notNull()
+      .default("new"),
+    mode: text("mode", { enum: ["delivery", "pickup", "dine_in"] }).notNull(),
+    customerName: text("customer_name").notNull(),
+    customerPhone: text("customer_phone").notNull(),
+    address: text("address"),
+    tableNumber: text("table_number"),
+    note: text("note"),
+    items: text("items", { mode: "json" }).$type<OrderLine[]>().notNull(),
+    subtotal: real("subtotal").notNull(),
+    deliveryFee: real("delivery_fee").notNull().default(0),
+    total: real("total").notNull(),
+    currency: text("currency").notNull(),
+    /** Empreinte anonymisée de l'expéditeur, pour limiter les abus */
+    senderHash: text("sender_hash").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("order_number_idx").on(t.qrCodeId, t.number),
+    index("order_user_created_idx").on(t.userId, t.createdAt),
+    index("order_sender_idx").on(t.qrCodeId, t.senderHash, t.createdAt),
+  ],
+)
+
+export type CustomerOrderRow = typeof customerOrder.$inferSelect
 
 export const userRelations = relations(user, ({ many }) => ({
   qrCodes: many(qrCode),

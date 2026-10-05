@@ -46,7 +46,7 @@ export default async function LandingPage({ params }: Props) {
   const qr = await getQrCodeByShortCode(code)
 
   // La carte d'un restaurant occupe tout l'écran, avec sa propre identité visuelle.
-  if (qr?.status === "active" && qr.type === "menu") return <MenuView menu={toViewMenu(qr.data)} />
+  if (qr?.status === "active" && qr.type === "menu") return <MenuView menu={toViewMenu(qr.data)} shortCode={qr.shortCode} />
 
   return (
     <div className="relative flex min-h-svh flex-col items-center bg-muted/40 px-4 py-10">

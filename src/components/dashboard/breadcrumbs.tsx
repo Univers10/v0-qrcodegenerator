@@ -19,6 +19,7 @@ const LABELS: Record<string, string> = {
   new: "Nouveau",
   edit: "Modifier",
   settings: "Paramètres",
+  orders: "Commandes",
 }
 
 export function Breadcrumbs() {

@@ -5,7 +5,9 @@ import { headers } from "next/headers"
 import { after } from "next/server"
 
 import { auth, getSession } from "@/lib/auth"
+import type { OrderStatus } from "@/lib/orders"
 import { collectOrphanAssets } from "@/lib/server/asset-service"
+import { setOrderStatus } from "@/lib/server/order-service"
 import {
   createQrCode,
   deleteQrCode,
@@ -92,5 +94,16 @@ export async function updateProfileAction(name: string): Promise<ActionResult> {
     return UNAUTHORIZED
   }
   revalidatePath("/dashboard", "layout")
+  return { ok: true, data: undefined }
+}
+
+export async function setOrderStatusAction(id: string, status: OrderStatus): Promise<ActionResult> {
+  const uid = await userId()
+  if (!uid) return UNAUTHORIZED
+  const allowed: OrderStatus[] = ["new", "preparing", "ready", "delivering", "completed", "cancelled"]
+  if (!allowed.includes(status)) return { ok: false, error: "Statut invalide" }
+  const done = await setOrderStatus(uid, id, status)
+  if (!done) return { ok: false, error: "Commande introuvable" }
+  revalidatePath("/dashboard/orders")
   return { ok: true, data: undefined }
 }
